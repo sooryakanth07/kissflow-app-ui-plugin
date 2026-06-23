@@ -1,0 +1,18 @@
+{
+  "name": "kissflow",
+  "owner": {
+    "name": "sooryakanth"
+  },
+  "plugins": [
+    {
+      "name": "kissflow-app-ui",
+      "displayName": "Kissflow App UI",
+      "description": "Scaffold and build custom UIs for Kissflow apps — folder routing, layouts, the Kissflow SDK, and data-model sync.",
+      "version": "0.1.0",
+      "source": {
+        "type": "relative",
+        "path": "./plugins/kissflow-app-ui"
+      }
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "kissflow-app-ui",
+  "displayName": "Kissflow App UI",
+  "description": "Scaffold and build a custom UI for a Kissflow app with @sooryakanth/app-ui — handles scaffolding, schema sync, and building the screens.",
+  "version": "0.1.0",
+  "author": {
+    "name": "sooryakanth"
+  },
+  "keywords": ["kissflow", "app-ui", "custom-ui", "scaffold", "vibe-coding"]
+}
