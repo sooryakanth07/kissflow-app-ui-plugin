@@ -2,7 +2,7 @@
   "name": "kissflow-app-ui",
   "displayName": "Kissflow App UI",
   "description": "Scaffold and build a custom UI for a Kissflow app with @sooryakanth/app-ui — handles scaffolding, schema sync, and building the screens.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": {
     "name": "sooryakanth"
   },
