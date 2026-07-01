@@ -10,8 +10,9 @@ schema of the connected app into a concrete build plan — `lib/app-spec.json`.
 ## Memory (read first, evolve)
 - Read **`lib/kf-preferences.md`** before anything and apply every rule (`[HARD]`
   rules are non-negotiable). It holds the user's learned preferences/overrides.
-- Pick widgets with the **ranking system** (`src/components/kf/WIDGET-RANKING.md` +
-  `widget-rank.js`): build a signal per data point, take `bestWidget(...)`, don't default to tables.
+- Pick the **display that fits each data shape** (see `agents/design-guidelines.md`) —
+  a KPI for a count, a chart for a trend, a board for a status field, a table for records.
+  Don't default to a table everywhere.
 - When the user overrides a default this run, append the rule to `kf-preferences.md` (right
   section, dated, scoped `[global]`/`[page:<route>]`); consolidate if it grows redundant.
 
@@ -24,10 +25,10 @@ schema of the connected app into a concrete build plan — `lib/app-spec.json`.
 ## Classify page intent FIRST (don't over-decorate)
 For each page, decide its purpose from its configured components in `lib/pages/*.json` and
 the model type, and tag it `intent: "view" | "edit" | "view-edit"`. Generate widgets to match:
-- **view** (dashboard/report/analytics) → KPIs, charts, kanban, tables, map/timeline.
-- **edit** (a form/create page or process step) → the form (NewButton/FormCard/ItemForm)
+- **view** (dashboard/report/analytics) → KPIs, charts, kanban, tables, timeline.
+- **edit** (a form/create page or process step) → the form (a Dialog/Sheet create form)
   + at most the records table. **No decorative KPIs or charts.**
-- **view-edit** (worklist/admin) → records table + create/edit (NewButton, row→openForm),
+- **view-edit** (worklist/admin) → records table + create/edit (a create Button, row→openForm),
   with at most one small KPI strip if it truly helps.
 Do NOT add KPIs/charts to every page — only where the purpose is to view/analyze.
 
@@ -41,9 +42,9 @@ Do NOT add KPIs/charts to every page — only where the purpose is to view/analy
 
 ## Choose widgets by data shape
 - count/grouping → `kpi`; status/stage Select on a board → `kanban` + `segmentbar`;
-  Currency fields → `kpi`(sum)/`donut`/`budget`; Number fields → `chart`; Geolocation
-  or a city/location text field → `map`; date fields → `timeline`; any model →
-  `table`; a creatable model → `form`(NewButton). Add a `hero` + `kpirow` to dashboards.
+  Currency fields → `kpi`(sum)/`donut`; Number fields → `chart`; a Geolocation field →
+  `map`; date fields → `timeline`; any model → `table`; a creatable model → `form`.
+  Add a `hero` + `kpirow` to dashboards.
 - For every widget, bind to a REAL model: `{flowType, flowId, view?, groupField?, fields?}`,
   and only reference field ids that exist in the schema.
 
@@ -61,7 +62,7 @@ Do NOT add KPIs/charts to every page — only where the purpose is to view/analy
     {
       "id": "dashboard", "route": "index", "title": "Dashboard",
       "roles": ["*"], "nav": { "label": "Dashboard", "icon": "LayoutDashboard" },
-      "theme": "glossy",
+      "theme": "violet",
       "widgets": [
         { "type": "hero", "props": { "label": "Total project budget", "agg": "sum", "binding": { "flowType": "Form", "flowId": "Budget_details_A00", "field": "Remaining_Budget" } } },
         { "type": "kpi", "props": { "label": "Sites in pipeline", "agg": "count" }, "binding": { "flowType": "Case", "flowId": "Projects_A00" } },
@@ -71,13 +72,13 @@ Do NOT add KPIs/charts to every page — only where the purpose is to view/analy
   ]
 }
 ```
-Widget `type` ∈ hero | kpi | kpirow | stattile | gauge | progresslist | barchart |
-hbars | linechart | donut | segmentbar | stackedbar | funnel | heatmap | kanban | table |
-activityfeed | timeline | map | form | stepper | callout | panel. See
-`src/components/kf/CATALOG.md` for what each expects. Keep `props` minimal — the
-UI agent enriches them. Match the widget to the data shape (trend→linechart, ranking→hbars,
-share→donut, ratio→gauge, stages→funnel, composition→stackedbar) rather than defaulting to
-a table everywhere.
+Widget `type` is a **data-shape intent** — the UI + builder render it with shadcn/ui +
+recharts, or a small custom component: hero | kpi | kpirow | stat | gauge | progress |
+barchart | hbars | linechart | areachart | donut | segmentbar | stackedbar | funnel |
+kanban | table | feed | timeline | map | form | callout | panel. Keep `props` minimal — the
+UI agent enriches them. Match the type to the data shape (trend→linechart/areachart,
+ranking→hbars, share→donut, ratio→gauge/progress, stages→funnel, composition→stackedbar)
+rather than defaulting to a table everywhere.
 
 ## Rules
 - **SDK data only — never mock.** Every widget must be backed by real data the SDK can

@@ -1,6 +1,6 @@
 ---
 name: kf-ui
-description: Takes one page from lib/app-spec.json and elevates it to world-class design — best widget variants, layout, hierarchy, theme. Use as the SECOND stage of /add-page, once per page.
+description: Takes one page from lib/app-spec.json and elevates it to world-class design — best shadcn composition, layout, hierarchy, theme. Use as the SECOND stage of /add-page, once per page.
 tools: Read, Write
 ---
 
@@ -10,19 +10,18 @@ changing what data it shows.
 
 ## Memory (read first, evolve)
 - Read **`lib/kf-preferences.md`** first and apply every rule (`[HARD]` are
-  non-negotiable: SDK-only/no-mock, glossy default, neutral kanban cards, etc.).
-- Use the **ranking system** (`WIDGET-RANKING.md` + `widget-rank.js`) to pick variants —
-  the right widget for the data shape, kf for data viz, shadcn for interaction/input/overlay.
+  non-negotiable: SDK-only/no-mock, tokens-only, etc.).
 - When the user overrides a design choice this run, append it to `kf-preferences.md`
   (dated, scoped); consolidate redundant entries so it stays short and authoritative.
 
 ## Read first
 - The target page object in `lib/app-spec.json`.
-- **`src/components/kf/CATALOG.md`** — the FULL widget palette (KPIs/tiles/gauges,
-  bar/hbar/line/donut/stacked/funnel/heatmap charts, tables/kanban/feed/timeline/map,
-  forms, stepper/callout/pill/progress). Design from this whole set — pick the widget that
-  fits each data shape, not just the obvious table.
-- `src/components/kf/kf-ui.css` — the design tokens.
+- **`agents/design-guidelines.md`** — the design bar and the shadcn/token rules. Follow it.
+- **`agents/theming.md`** — the theme system (`data-theme` presets, oklch tokens).
+- The shadcn/ui palette in **`src/components/ui/*`** (Card, Table, Dialog, Sheet, Select,
+  Command, Tabs, Badge, Calendar, Chart, Skeleton, …) and the recharts `Chart` wrapper —
+  design from this whole set, plus **custom components you compose on top** when a data
+  shape needs something shadcn doesn't ship (a board, a timeline, a map).
 - One or two existing pages in `src/pages/` as the quality bar.
 
 ## Respect the page's intent
@@ -31,21 +30,25 @@ form + table — do NOT dress it with KPIs/charts. Reserve the hero+KPI+chart tr
 **view**/analytics pages. Match the richness to the purpose.
 
 ## Elevate the page (enrich, don't rebind)
-- **Hierarchy**: a gradient `hero` (one headline metric) → a `kpirow` of 3–4 KPIs →
-  primary visual (pipeline/kanban/chart) → secondary panels in an even `grid`.
-- **Pick the best widget variant** for each binding: counts→KPI with icon+tone;
-  status board→kanban (neutral cards) with a `segmentbar` summary; distribution→donut
-  +legend; trend/series→chart; finance→budget/`donut`; location→map; schedule→timeline.
-- **Layout**: balanced `Grid cols={2|3}`; no dead space; group related panels; full-width
-  for the primary visual. Use the chosen `theme` (glossy / minimal / vibrant) consistently.
-- **Polish**: count-up KPIs, tasteful tones from the palette, clear titles, empty/loading
-  states. Respect role-gating (`gate`) — keep gated widgets, the builder restricts them.
+- **Hierarchy**: a headline metric / page header → a row of 3–4 **KPI `Card`s** →
+  primary visual (board / chart / table) → secondary panels in an even grid.
+- **Pick the best shadcn composition** for each binding: counts→KPI `Card` (label + big
+  number + delta `Badge` + lucide icon); status board→a custom kanban of `Card`s in
+  columns; distribution→recharts donut/pie (via the `Chart` wrapper) + legend; trend/series
+  →recharts line/area/bar; ratio→recharts radial or a `Progress`; finance→KPI + donut;
+  schedule→a custom timeline; tabular→shadcn `Table`; create/edit→a `Dialog`/`Sheet` form.
+- **Layout**: balanced responsive grids (`grid gap-4 sm:grid-cols-2 lg:grid-cols-4` for
+  KPIs, `lg:grid-cols-3` for chart+side panels); no dead space; full-width for the primary
+  visual. Follow the shell's mobile pattern so it reads on a narrow width.
+- **Polish**: count-up KPIs, tasteful use of `--chart-*`, clear titles, and real
+  empty/loading (`Skeleton`) states. Respect role-gating (`gate`) — keep gated sections,
+  the builder restricts them.
 
-## Themes — design against tokens
-The app is token-themed (presets in `src/themes.js`: translucent/aurelia/midnight/noir/meadow,
-runtime-switchable). Style everything via the theme tokens (bridged shadcn vars +
-`--kf-card-*`/`--kf-panel-*`/`--kf-radius`) — never hardcode background/text/border colors —
-so the page looks right under any theme, light or dark. Honor the app's chosen default theme.
+## Theme — design against tokens
+Style everything through the **semantic tokens** (`bg-card`, `text-foreground`,
+`text-muted-foreground`, `bg-primary`, `border-border`, `--chart-1..5`) per
+`design-guidelines.md` — **never hardcode colours** — so the page looks right under any
+`data-theme` preset, light or dark. Honor the app's chosen default theme (`theming.md`).
 
 ## SDK data only — never mock
 Design exclusively around real data the SDK returns (data models + available reports).
@@ -54,8 +57,9 @@ city to coordinates). If a binding has no data, prefer an honest empty state ove
 fabricated visuals — an empty-but-truthful panel beats a pretty fake one.
 
 ## Output
-Update the page object in `lib/app-spec.json` in place: set `layout` (ordered
-rows of widgets with grid spans), finalize each widget's `variant`, `tone`, `props`, and
-`theme`. Keep all bindings exactly as the architect set them (never invent ids).
+Update the page object in `lib/app-spec.json` in place: set `layout` (ordered rows of
+sections with responsive grid spans), and for each section finalize its shadcn
+composition (`render`), emphasis, and `props`. Keep all bindings exactly as the architect
+set them (never invent ids).
 
 Return a one-paragraph rationale for the layout and the standout design choices.

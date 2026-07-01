@@ -12,8 +12,8 @@ and `lib/pages/*.json` exist. If they don't, tell the user to run `/sync` first 
 
 ## Memory — the pipeline evolves
 - The shared memory is **`lib/kf-preferences.md`** (learned preferences + overrides).
-  Every agent reads it first and applies it; widget choices use the ranking system
-  (`WIDGET-RANKING.md` / `widget-rank.js`).
+  Every agent reads it first and applies it; design choices follow
+  `agents/design-guidelines.md` (shadcn/ui + semantic tokens).
 - **Capture**: whenever the user states or corrects a preference during this run (theme,
   a widget choice, layout, naming, "don't do X", "always do Y"), record it in
   `kf-preferences.md` — right section, dated, scoped `[global]` or `[page:<route>]`. Newest
@@ -23,14 +23,13 @@ and `lib/pages/*.json` exist. If they don't, tell the user to run `/sync` first 
   This is how the agents get better at matching the user's taste over time.
 
 ## Step 0 — theme (ask the user)
-Read the theme registry `src/themes.js` and ask (AskUserQuestion) which theme to
-use — the current named presets are **Translucent** (default, frosted glass) · **Aurelia**
-(warm editorial, solid cards) · **Midnight** (dark) · **Noir** (mono minimal) · **Meadow**
-(fresh green). Themes are global, token-based, and runtime-switchable (sidebar Theme
-switcher), so "choosing while generating" sets the app's **default** theme: set the chosen
-id as the default in `themes.js` `getTheme()` (or `document.documentElement.dataset.theme`)
-and record it in `app-spec.json` (`app.theme`). Design pages against the theme TOKENS (never
-hardcode colors), so every page looks right under any theme.
+Read `agents/theming.md` and the registry `src/themes.js`, then ask (AskUserQuestion) which
+accent preset to use — **Violet** (default) · **Blue** · **Emerald** · **Rose** · **Amber** ·
+**Orange** — and light or dark. Themes are global, token-based (shadcn oklch), and
+runtime-switchable (the shell's theme control), so "choosing while generating" sets the app's
+**default**: apply it with `applyTheme(id)` / `data-theme` on `<html>` (and `class="dark"`
+for dark) and record it in `app-spec.json` (`app.theme`). Design pages against the semantic
+TOKENS (never hardcode colors), so every page looks right under any theme, light or dark.
 
 ## Step 1 — Architect (`subagent_type: kf-architect`)
 Spawn the architect to read the schema and write `lib/app-spec.json` — the page
@@ -59,4 +58,4 @@ re-run QA. Loop until green (cap ~2 rounds), then report.
 ## Finish
 Summarize: pages generated (with routes), key design choices, and the QA result. Tell the
 user to `/run` to preview and `/deploy` when ready. Keep every value SDK-derived and every
-action wired (`openForm` / `NewButton`) so it works once deployed in Kissflow.
+action wired (`openForm` / a create form) so it works once deployed in Kissflow.

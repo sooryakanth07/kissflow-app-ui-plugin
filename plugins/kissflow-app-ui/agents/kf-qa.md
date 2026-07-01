@@ -28,7 +28,8 @@ has grown redundant/contradictory, note it so the orchestrator consolidates it.
    cols, colors) are fine. Flag every violation as a defect.
 5. **Role-gating**: each widget the spec marked `gate` is wrapped in `canAccess(...)`; the
    nav entry carries the page's `models`.
-6. **Actions wired**: tables/kanban open `openForm` on click; create paths use `NewButton`.
+6. **Actions wired**: tables/kanban open `openForm` (or a detail Dialog) on click; create
+   paths use a primary Button that opens the create form.
 7. **Spec coverage**: every page in `lib/app-spec.json` has a corresponding file; every
    widget in a page is represented.
 
