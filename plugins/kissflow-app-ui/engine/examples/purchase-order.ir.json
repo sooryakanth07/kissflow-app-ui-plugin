@@ -1,0 +1,451 @@
+{
+  "app": {
+    "name": "Purchase Order",
+    "id": "Purchase_Order_A00",
+    "description": "Raise, approve and track purchase orders"
+  },
+  "personas": [
+    {
+      "id": "Requester",
+      "name": "Requester",
+      "goals": [
+        "raise a PO",
+        "track my POs"
+      ]
+    },
+    {
+      "id": "Approving Manager",
+      "name": "Approving Manager",
+      "goals": [
+        "approve pending POs",
+        "control spend"
+      ]
+    },
+    {
+      "id": "Finance",
+      "name": "Finance",
+      "goals": [
+        "process approved POs for payment",
+        "watch budget"
+      ]
+    },
+    {
+      "id": "Admin",
+      "name": "Admin",
+      "goals": [
+        "manage vendors & catalog"
+      ]
+    }
+  ],
+  "journeys": [
+    {
+      "id": "j-raise",
+      "persona": "Requester",
+      "story": "requester raises a PO with line items and submits for approval; sees it on My POs"
+    },
+    {
+      "id": "j-approve",
+      "persona": "Approving Manager",
+      "story": "manager sees POs awaiting approval and approves/rejects within budget"
+    },
+    {
+      "id": "j-finance",
+      "persona": "Finance",
+      "story": "finance processes approved POs for payment and tracks budget vs spend"
+    }
+  ],
+  "roles": [
+    {
+      "name": "Requester"
+    },
+    {
+      "name": "Approving Manager"
+    },
+    {
+      "name": "Finance"
+    },
+    {
+      "name": "Admin"
+    }
+  ],
+  "lists": [
+    {
+      "name": "Department",
+      "items": [
+        "Engineering",
+        "Sales",
+        "Marketing",
+        "Operations",
+        "Finance"
+      ]
+    },
+    {
+      "name": "Currency",
+      "items": [
+        "USD",
+        "EUR",
+        "GBP",
+        "INR"
+      ]
+    },
+    {
+      "name": "UoM",
+      "items": [
+        "Each",
+        "Box",
+        "Kg",
+        "Litre",
+        "Hour"
+      ]
+    },
+    {
+      "name": "Item Category",
+      "items": [
+        "Hardware",
+        "Software",
+        "Services",
+        "Office Supplies",
+        "Travel"
+      ]
+    },
+    {
+      "name": "PO Status",
+      "items": [
+        "Draft",
+        "Pending Approval",
+        "Approved",
+        "Rejected",
+        "Issued",
+        "Closed"
+      ]
+    }
+  ],
+  "forms": [
+    {
+      "name": "Vendor",
+      "section": "Vendor Details",
+      "fields": [
+        {
+          "name": "Vendor Name",
+          "type": "Text",
+          "required": true,
+          "section": "Vendor Details"
+        },
+        {
+          "name": "Contact Person",
+          "type": "Text",
+          "section": "Vendor Details"
+        },
+        {
+          "name": "Email",
+          "type": "Email",
+          "section": "Vendor Details"
+        },
+        {
+          "name": "Phone",
+          "type": "Text",
+          "section": "Vendor Details"
+        },
+        {
+          "name": "Category",
+          "type": "Select",
+          "referredList": "Item Category",
+          "section": "Vendor Details"
+        },
+        {
+          "name": "Address",
+          "type": "Textarea",
+          "section": "Address"
+        }
+      ]
+    },
+    {
+      "name": "Item Catalog",
+      "section": "Item",
+      "fields": [
+        {
+          "name": "Item Name",
+          "type": "Text",
+          "required": true,
+          "section": "Item Details"
+        },
+        {
+          "name": "Category",
+          "type": "Select",
+          "referredList": "Item Category",
+          "section": "Item Details"
+        },
+        {
+          "name": "Unit of Measure",
+          "type": "Select",
+          "referredList": "UoM",
+          "section": "Item Details"
+        },
+        {
+          "name": "Unit Price",
+          "type": "Currency",
+          "currency": "USD",
+          "section": "Item Details"
+        },
+        {
+          "name": "Preferred Vendor",
+          "type": "Reference",
+          "ref": "Vendor",
+          "lookup": [
+            {
+              "name": "Vendor Name",
+              "type": "Text"
+            }
+          ],
+          "section": "Sourcing"
+        }
+      ]
+    },
+    {
+      "name": "PO Line Item",
+      "flowType": "Form",
+      "childOf": "Purchase Order",
+      "section": "Line Item",
+      "fields": [
+        {
+          "name": "Item",
+          "type": "Reference",
+          "ref": "Item Catalog",
+          "lookup": [
+            {
+              "name": "Item Name",
+              "type": "Text"
+            },
+            {
+              "name": "Unit Price",
+              "type": "Currency"
+            }
+          ]
+        },
+        {
+          "name": "Description",
+          "type": "Text"
+        },
+        {
+          "name": "Quantity",
+          "type": "Number",
+          "required": true
+        },
+        {
+          "name": "Unit Price",
+          "type": "Currency",
+          "currency": "USD",
+          "formula": "Item.Unit_Price"
+        },
+        {
+          "name": "Line Total",
+          "type": "Currency",
+          "currency": "USD",
+          "formula": "Quantity * Unit_Price"
+        }
+      ]
+    },
+    {
+      "name": "Purchase Order",
+      "flowType": "Process",
+      "section": "Purchase Order",
+      "fields": [
+        {
+          "name": "PO Number",
+          "type": "SequenceNumber",
+          "section": "Order Information"
+        },
+        {
+          "name": "Requester",
+          "type": "User",
+          "section": "Order Information"
+        },
+        {
+          "name": "Department",
+          "type": "Select",
+          "referredList": "Department",
+          "section": "Order Information"
+        },
+        {
+          "name": "Vendor",
+          "type": "Reference",
+          "ref": "Vendor",
+          "required": true,
+          "lookup": [
+            {
+              "name": "Vendor Name",
+              "type": "Text"
+            },
+            {
+              "name": "Email",
+              "type": "Email"
+            }
+          ],
+          "section": "Vendor & Schedule"
+        },
+        {
+          "name": "Order Date",
+          "type": "Date",
+          "section": "Vendor & Schedule"
+        },
+        {
+          "name": "Required By",
+          "type": "Date",
+          "section": "Vendor & Schedule"
+        },
+        {
+          "name": "Currency",
+          "type": "Select",
+          "referredList": "Currency",
+          "section": "Amount & Status"
+        },
+        {
+          "name": "Total Amount",
+          "type": "Currency",
+          "currency": "USD",
+          "formula": "sum(Line_Items.Line_Total)",
+          "section": "Amount & Status"
+        },
+        {
+          "name": "Status",
+          "type": "Select",
+          "referredList": "PO Status",
+          "section": "Amount & Status"
+        },
+        {
+          "name": "Notes",
+          "type": "Textarea",
+          "section": "Notes"
+        }
+      ]
+    }
+  ],
+  "childTables": [
+    {
+      "parent": "Purchase Order",
+      "child": "PO Line Item",
+      "field": "Line Items"
+    }
+  ],
+  "workflow": {
+    "flow": "Purchase Order",
+    "steps": [
+      {
+        "name": "Submit",
+        "actor": "Requester"
+      },
+      {
+        "name": "Manager Approval",
+        "actor": "Approving Manager",
+        "decision": [
+          "Approve",
+          "Reject"
+        ]
+      },
+      {
+        "name": "Finance Processing",
+        "actor": "Finance"
+      },
+      {
+        "name": "Issued",
+        "actor": "system"
+      }
+    ]
+  },
+  "permissions": [
+    {
+      "role": "Requester",
+      "model": "Purchase Order",
+      "level": "Editable",
+      "scope": "my-items"
+    },
+    {
+      "role": "Approving Manager",
+      "model": "Purchase Order",
+      "level": "Editable",
+      "scope": "my-team"
+    },
+    {
+      "role": "Finance",
+      "model": "Purchase Order",
+      "level": "ReadOnly",
+      "scope": "all"
+    },
+    {
+      "role": "Admin",
+      "model": "Vendor",
+      "level": "Editable",
+      "scope": "all"
+    }
+  ],
+  "pages": [
+    {
+      "name": "Requester Home",
+      "role": "Requester",
+      "cards": [
+        {
+          "label": "My Draft POs",
+          "scope": "my-items"
+        },
+        {
+          "label": "Pending My Action",
+          "scope": "my-items"
+        },
+        {
+          "label": "My Total Spend",
+          "scope": "my-items"
+        }
+      ]
+    },
+    {
+      "name": "Manager Home",
+      "role": "Approving Manager",
+      "cards": [
+        {
+          "label": "Awaiting My Approval",
+          "scope": "my-team"
+        },
+        {
+          "label": "Team Spend This Month",
+          "scope": "my-team"
+        },
+        {
+          "label": "Top Vendors",
+          "scope": "my-team"
+        }
+      ]
+    },
+    {
+      "name": "Finance Home",
+      "role": "Finance",
+      "cards": [
+        {
+          "label": "Approved for Payment",
+          "scope": "all"
+        },
+        {
+          "label": "Budget vs Spend",
+          "scope": "all"
+        },
+        {
+          "label": "Overdue POs",
+          "scope": "all"
+        }
+      ]
+    },
+    {
+      "name": "Admin Home",
+      "role": "Admin",
+      "cards": [
+        {
+          "label": "All Vendors",
+          "scope": "all"
+        },
+        {
+          "label": "Item Catalog",
+          "scope": "all"
+        }
+      ]
+    }
+  ]
+}

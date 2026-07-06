@@ -1,0 +1,746 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Kissflow App Metadata — Structure & Authoring Reference</title>
+<style>
+  :root{
+    --bg:#0f1117; --panel:#171a23; --panel-2:#1d212c; --line:#2a2f3c;
+    --ink:#e7eaf3; --muted:#9aa3b6; --faint:#6b7488;
+    --indigo:#7c83ff; --violet:#b08cff; --cyan:#4fd0e0; --emerald:#46d6a0;
+    --amber:#f5b454; --rose:#ff6b8b; --pink:#f57fc4;
+    --code:#0b0d13; --radius:14px;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:radial-gradient(60% 50% at 20% -5%,rgba(124,131,255,.14),transparent 60%),radial-gradient(50% 45% at 95% 0%,rgba(176,140,255,.10),transparent 55%),var(--bg);color:var(--ink);font:15px/1.65 var(--sans);}
+  a{color:var(--indigo);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{display:grid;grid-template-columns:268px 1fr;max-width:1280px;margin:0 auto;gap:0}
+  /* sidebar */
+  aside{position:sticky;top:0;align-self:start;height:100vh;overflow:auto;padding:26px 18px;border-right:1px solid var(--line)}
+  aside .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:16px;margin-bottom:6px}
+  aside .brand .dot{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--indigo),var(--violet));display:grid;place-items:center;color:#fff;font-size:15px}
+  aside .tag{color:var(--faint);font-size:11.5px;margin-bottom:18px}
+  nav a{display:block;color:var(--muted);font-size:13px;padding:5px 10px;border-radius:8px;border-left:2px solid transparent}
+  nav a:hover{color:var(--ink);background:var(--panel);text-decoration:none}
+  nav .grp{color:var(--faint);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;margin:16px 0 6px 10px;font-weight:700}
+  /* main */
+  main{padding:40px 46px 120px;min-width:0;max-width:980px}
+  h1{font-size:34px;letter-spacing:-.02em;margin:0 0 6px}
+  .sub{color:var(--muted);font-size:15px;margin:0 0 8px}
+  .pills{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 8px}
+  .pill{font-size:11.5px;font-weight:600;padding:4px 11px;border-radius:999px;background:var(--panel);border:1px solid var(--line);color:var(--muted)}
+  section{margin:46px 0;scroll-margin-top:20px}
+  h2{font-size:23px;letter-spacing:-.01em;margin:0 0 4px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+  h3{font-size:16.5px;margin:26px 0 8px;color:var(--ink)}
+  p{color:#cdd3e1}
+  .lead{color:var(--muted)}
+  code{font-family:var(--mono);font-size:12.5px;background:var(--panel-2);border:1px solid var(--line);border-radius:6px;padding:1px 6px;color:#dfe4f1}
+  pre{background:var(--code);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;overflow:auto;font-family:var(--mono);font-size:12.5px;line-height:1.6;color:#cfd6e6}
+  pre .k{color:var(--violet)} pre .s{color:var(--emerald)} pre .n{color:var(--amber)} pre .c{color:var(--faint);font-style:italic} pre .r{color:var(--cyan)} pre .p{color:var(--rose)}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13px}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--faint);font-size:11px;letter-spacing:.04em;text-transform:uppercase;font-weight:700}
+  td code{font-size:11.5px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;margin:14px 0}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .note{border-left:3px solid var(--amber);background:rgba(245,180,84,.07);padding:12px 16px;border-radius:0 10px 10px 0;margin:14px 0;font-size:13.5px;color:#e9d9bd}
+  .warn{border-left:3px solid var(--rose);background:rgba(255,107,139,.07);color:#f3c9d2}
+  .ok{border-left:3px solid var(--emerald);background:rgba(70,214,160,.07);color:#bdecd9}
+  .kind{font-family:var(--mono);font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;white-space:nowrap}
+  .k-model{background:rgba(124,131,255,.16);color:var(--indigo)}
+  .k-field{background:rgba(79,208,224,.15);color:var(--cyan)}
+  .k-layout{background:rgba(176,140,255,.15);color:var(--violet)}
+  .k-expr{background:rgba(70,214,160,.15);color:var(--emerald)}
+  .k-ref{background:rgba(245,180,84,.15);color:var(--amber)}
+  .k-page{background:rgba(245,127,196,.15);color:var(--pink)}
+  .k-perm{background:rgba(255,107,139,.15);color:var(--rose)}
+  /* tree */
+  .tree{font-family:var(--mono);font-size:12.5px;line-height:1.9;color:#cdd3e1;background:var(--code);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;overflow:auto}
+  .tree .t1{color:var(--indigo);font-weight:700} .tree .t2{color:var(--violet)} .tree .t3{color:var(--cyan)} .tree .cm{color:var(--faint)}
+  /* graph boxes */
+  .graph{display:flex;flex-direction:column;gap:8px}
+  .node{border:1px solid var(--line);border-radius:10px;padding:10px 14px;background:var(--panel)}
+  .node .nm{font-family:var(--mono);font-size:12px;color:var(--ink);font-weight:700}
+  .node .rel{font-family:var(--mono);font-size:11px;color:var(--faint)}
+  .indent{margin-left:26px;border-left:1px dashed var(--line);padding-left:18px}
+  details{border:1px solid var(--line);border-radius:10px;margin:10px 0;background:var(--panel);overflow:hidden}
+  summary{cursor:pointer;padding:11px 16px;font-weight:600;font-size:14px;list-style:none}
+  summary::-webkit-details-marker{display:none}
+  summary::before{content:"▸";color:var(--faint);margin-right:9px;display:inline-block;transition:transform .15s}
+  details[open] summary::before{transform:rotate(90deg)}
+  details .body{padding:4px 16px 16px}
+  .foot{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);color:var(--faint);font-size:12px}
+  .legend{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+  @media(max-width:880px){.wrap{grid-template-columns:1fr}aside{display:none}main{padding:28px 20px 80px}.grid2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<aside>
+  <div class="brand"><span class="dot">⬡</span> KF Metadata</div>
+  <div class="tag">App structure &amp; authoring reference</div>
+  <nav>
+    <div class="grp">Foundations</div>
+    <a href="#overview">Overview</a>
+    <a href="#concepts">Concepts &amp; context</a>
+    <a href="#tree">The app metadata tree</a>
+    <a href="#catalog">Object catalog</a>
+    <div class="grp">App level</div>
+    <a href="#application">Application</a>
+    <a href="#variables">App variables</a>
+    <a href="#flows">Flows (Process/Case/Form/Dataset)</a>
+    <div class="grp">The model blob</div>
+    <a href="#blob">Draft blob (entity graph)</a>
+    <a href="#fieldtypes">Field types</a>
+    <a href="#layout">Layout (rows/columns)</a>
+    <a href="#references">References &amp; query defs</a>
+    <a href="#conditions">Criteria &amp; conditions</a>
+    <a href="#expressions">Expressions &amp; nodes</a>
+    <div class="grp">Beyond the model</div>
+    <a href="#views">Views &amp; reports</a>
+    <a href="#workflow">Workflow &amp; caseflow</a>
+    <a href="#roles">Roles &amp; permissions</a>
+    <a href="#pages">Pages (page schema)</a>
+    <a href="#integrations">Integrations</a>
+    <a href="#export">Full-export objects</a>
+    <div class="grp">Authoring</div>
+    <a href="#api">Authoring API</a>
+    <a href="#order">Authoring order</a>
+    <a href="#source">Source cross-reference</a>
+  </nav>
+</aside>
+
+<main>
+  <h1>Kissflow App Metadata</h1>
+  <p class="sub">The complete structure of a low-code app — and how to author it through the API.</p>
+  <div class="pills">
+    <span class="pill">Verified against <code>kissflow-xg</code> source</span>
+    <span class="pill">Live structures from a real Kissflow app export</span>
+    <span class="pill">For the <code>kf-app-author</code> plugin</span>
+  </div>
+
+  <!-- OVERVIEW -->
+  <section id="overview">
+    <h2>Overview &amp; how to read this</h2>
+    <p>A Kissflow application is a tree of <strong>metadata objects</strong>. Some are simple
+       documents (the app, its variables, a role); the two hard ones — a <strong>model</strong>
+       (form/process/case) and a <strong>page</strong> — are stored as a <em>normalized entity
+       graph</em>: a flat dictionary keyed by entity <code>Id</code>, with a <code>Root</code>
+       pointer, where every parent references its children by id arrays named
+       <code>Parent::ChildType</code> (e.g. <code>Model::Field</code>, <code>Field::Expression</code>).</p>
+    <div class="legend">
+      <span class="kind k-model">Model / Flow</span>
+      <span class="kind k-layout">Layout</span>
+      <span class="kind k-field">Field</span>
+      <span class="kind k-ref">Reference / Query</span>
+      <span class="kind k-expr">Expression / Node</span>
+      <span class="kind k-page">Page</span>
+      <span class="kind k-perm">Role / Permission</span>
+    </div>
+    <div class="note">Throughout, <code>{acct}</code> = account id, <code>{appId}</code> = application id,
+      <code>{type}</code> ∈ <code>form | process | case | dataset</code>. Authoring writes go to the
+      <code>/flow/2</code> and <code>/metadata/2</code> surfaces; runtime records are a different API.</div>
+    <div class="ok note"><strong>Complete attribute catalogs.</strong> The structures shown here are the
+      common shape. The <em>exhaustive</em>, source-cited attribute lists — every <code>.get()</code>
+      key, every relation, every enum value, with <code>file:line</code> from the <code>kissflow-xg</code>
+      source — live in <code>METADATA_ATTRIBUTES_model.md</code> (Field has ~26 scalar attrs + 21
+      <code>::</code> relations; Model ~22 + 13 relations) and <code>METADATA_ATTRIBUTES_page.md</code>
+      (page/view/workflow/permission/app). Treat those as authoritative; this page is the orientation.</div>
+  </section>
+
+  <!-- CONCEPTS -->
+  <section id="concepts">
+    <h2>Concepts &amp; context — what the metadata <em>means</em></h2>
+    <p>The structures below say <em>how</em> metadata is shaped; this says <em>what it means</em> to an
+       app builder. A Kissflow <strong>App</strong> bundles three things — <strong>data</strong>,
+       <strong>workflow</strong>, and <strong>UI</strong> — into one interconnected unit. (Product
+       semantics from the Kissflow community <a href="https://community.kissflow.com/category/apps-portals">Apps &amp; Portals</a> docs.)</p>
+    <table>
+      <thead><tr><th>Concept</th><th>Metadata object</th><th>What it means · how it relates</th></tr></thead>
+      <tbody>
+        <tr><td>Application</td><td><span class="kind k-model">App doc + blob</span></td><td>The shell — name, theme, languages, navigation; contains all flows &amp; pages</td></tr>
+        <tr><td>Dataform / Form</td><td><span class="kind k-model">Form + Model</span></td><td>A record type with typed fields — the app's "tables"; referenced by pages &amp; processes</td></tr>
+        <tr><td>Process</td><td><span class="kind k-model">Process + Workflow</span></td><td>Multi-step automation; each step is an <code>Activity</code> owned by a role</td></tr>
+        <tr><td>Case / Board</td><td><span class="kind k-model">Case + CaseFlow</span></td><td>A status-tracked Kanban; statuses = columns, transitions = <code>OutwardStatus</code></td></tr>
+        <tr><td>List / Dataset</td><td><span class="kind k-ref">List / Dataset</span></td><td>Data collections that <strong>feed reference/select fields</strong> — build these first</td></tr>
+        <tr><td>Field · Expression</td><td><span class="kind k-field">Field</span> · <span class="kind k-expr">Expr</span></td><td>One typed column; computed fields carry a formula (Expression + Node tree)</td></tr>
+        <tr><td>View · Report</td><td><span class="kind k-field">View / Report blob</span></td><td>Saved lists/boards/charts on a flow — bound by page components</td></tr>
+        <tr><td>Page</td><td><span class="kind k-page">Page blob</span></td><td>The UI canvas users navigate to — a container tree that hosts components</td></tr>
+        <tr><td>Component</td><td><span class="kind k-page">Component</span></td><td>A reusable UI element (Card/Table/chart/Kanban/Gallery/Form/Custom) bound to a flow via <code>Data{flow_id,report_id,view_id}</code></td></tr>
+        <tr><td>App Variables</td><td><span class="kind k-ref">VariableRef</span></td><td>Dynamic state across pages — on-load JS sets them, cards read them</td></tr>
+        <tr><td>Navigation</td><td><span class="kind k-page">Navigation blob</span></td><td>Role-aware routing that links pages into journeys</td></tr>
+        <tr><td>Roles &amp; Permissions</td><td><span class="kind k-perm">app_role + perms</span></td><td>Who can view/edit which flow/field/step/status — referenced by role <code>_id</code></td></tr>
+        <tr><td>Integration</td><td><span class="kind k-expr">Integration</span></td><td>Trigger→Action automations bridging flows &amp; external systems</td></tr>
+        <tr><td>Custom Component</td><td><span class="kind k-page">manifest + bundle</span></td><td>A bespoke React widget placed on a page like any component</td></tr>
+      </tbody>
+    </table>
+    <div class="ok note"><strong>The mental model:</strong> a <em>page</em> hosts <em>components</em> that
+      <em>bind to</em> a process/form/case/dataset/report; a <em>dataset/list</em> feeds the
+      <em>reference/select fields</em> of forms; a <em>case</em> is a board whose statuses are columns; a
+      <em>process</em> routes a record through role-owned steps; <em>app variables</em> carry computed
+      numbers into KPI cards; <em>navigation</em> + <em>roles</em> wire and gate it all.</div>
+    <div class="note"><strong>Why it matters for authoring:</strong> build along the product grain —
+      masters/lists → forms → processes/cases that reference them → views → roles → pages. A blob that
+      ignores these links (a Reference with no target, a card bound to no report, a status with no
+      transition) <em>parses but is a broken app</em>. Build meaning, not just shape. See <code>CONCEPTS.md</code>.</div>
+  </section>
+
+  <!-- TREE -->
+  <section id="tree">
+    <h2>The app metadata tree</h2>
+    <p class="lead">Everything that constitutes an application, top-down. Indentation = containment.</p>
+    <div class="tree"><span class="t1">Application</span>  <span class="cm"># name, theme{colors}, languages, version, permissions</span>
+├─ <span class="t2">App Variables</span>            <span class="cm"># {appId}_session — session vars w/ DataType + DefaultValue</span>
+├─ <span class="t2">Flows</span> (Process · Case · Form · Dataset)
+│   └─ each Flow =
+│      ├─ <span class="t3">Model</span> (the draft blob)
+│      │   ├─ Layout      <span class="cm"># Row → Column(Section|Field), grid Start/End</span>
+│      │   ├─ Fields      <span class="cm"># Text, Number, Currency, Select, Date, User, Reference…</span>
+│      │   ├─ QueryDefinitions  <span class="cm"># for Reference/User fields → Criteria → Condition</span>
+│      │   └─ Expressions <span class="cm"># ExpressionStr + parsed Node tree (computed fields)</span>
+│      ├─ <span class="t3">Views</span>      <span class="cm"># form view / list view / case board / dataset view</span>
+│      ├─ <span class="t3">Workflow</span>   <span class="cm"># Process: Activity[] steps · Case: caseflow Statuses+Transitions</span>
+│      └─ <span class="t3">Permissions</span><span class="cm"># field/step/status perms, keyed by role _id</span>
+├─ <span class="t2">Pages</span>                    <span class="cm"># page-schema graph: Container → Component → FieldMapping → Property</span>
+├─ <span class="t2">Integrations</span>             <span class="cm"># Connectors[] of Trigger/Action entities</span>
+├─ <span class="t2">Reports</span>                  <span class="cm"># chart/pivot views on a flow</span>
+├─ <span class="t2">Roles</span> (app_role)          <span class="cm"># members (Users/Groups) + app access</span>
+├─ <span class="t2">Custom Components</span>         <span class="cm"># React bundles (built by kf-app-builder)</span>
+└─ <span class="t2">Theme · Languages · Resources</span></div>
+  </section>
+
+  <!-- CATALOG -->
+  <section id="catalog">
+    <h2>Object catalog</h2>
+    <p class="lead">Every metadata object, its read endpoint, and whether it's authored as a simple
+       doc or as part of a draft blob.</p>
+    <table>
+      <thead><tr><th>Object</th><th>Kind</th><th>Read endpoint</th><th>Authored as</th></tr></thead>
+      <tbody>
+        <tr><td>Application</td><td><span class="kind k-model">doc</span></td><td><code>/flow/2/{acct}/app/{appId}/info</code></td><td>flow doc + draft/publish</td></tr>
+        <tr><td>App Variables</td><td><span class="kind k-model">doc</span></td><td><code>/application/2/{acct}/{appId}/variable/</code></td><td>POST per variable</td></tr>
+        <tr><td>Process / Case / Form / Dataset</td><td><span class="kind k-model">flow</span></td><td><code>/flow/2/{acct}/{type}/</code></td><td>create shell → model blob</td></tr>
+        <tr><td>Model (fields+layout)</td><td><span class="kind k-field">blob</span></td><td><code>/metadata/2/{acct}/{type}/{id}/draft</code></td><td>draft blob → publish</td></tr>
+        <tr><td>Field</td><td><span class="kind k-field">entity</span></td><td>(inside the blob)</td><td>entity in draft blob</td></tr>
+        <tr><td>QueryDefinition / Criteria / Condition</td><td><span class="kind k-ref">entity</span></td><td>(inside the blob)</td><td>entity in draft blob</td></tr>
+        <tr><td>Expression / Node</td><td><span class="kind k-expr">entity</span></td><td>(inside the blob)</td><td>entity in draft blob</td></tr>
+        <tr><td>View / Report</td><td><span class="kind k-field">blob</span></td><td><code>/metadata/2/.../{type}view/{id}/draft</code></td><td>draft → softpublish</td></tr>
+        <tr><td>Workflow step / Caseflow</td><td><span class="kind k-model">entity</span></td><td>(inside process/case blob)</td><td>blob → publish</td></tr>
+        <tr><td>Role (app_role)</td><td><span class="kind k-perm">doc</span></td><td><code>/app_role/2/{acct}/</code></td><td>POST (access-key ✓)</td></tr>
+        <tr><td>Permission</td><td><span class="kind k-perm">entity</span></td><td>(inside view/step/casepermission blob)</td><td>blob → publish</td></tr>
+        <tr><td>Page</td><td><span class="kind k-page">blob</span></td><td><code>/metadata/2/.../page/{id}/schema</code></td><td>shell → page graph → publish</td></tr>
+        <tr><td>Integration</td><td><span class="kind k-model">doc</span></td><td><code>/flow/2/{acct}/integration</code></td><td>connector config</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- APPLICATION -->
+  <section id="application">
+    <h2>Application</h2>
+    <p>The container document. Carries identity, version/build numbers, the colour theme,
+       translation languages, and the caller's permissions.</p>
+    <pre><span class="k">GET</span> /flow/2/{acct}/app/{appId}/info
+{
+  <span class="p">"_id"</span>: <span class="s">"Sample_App_A00"</span>, <span class="p">"Type"</span>: <span class="s">"Application"</span>, <span class="p">"Status"</span>: <span class="s">"Live"</span>,
+  <span class="p">"Name"</span>: <span class="s">"IT Asset Management System"</span>, <span class="p">"Description"</span>: <span class="s">"..."</span>,
+  <span class="p">"BuildNumber"</span>: <span class="n">18</span>, <span class="p">"VersionNumber"</span>: <span class="s">"1.0"</span>, <span class="p">"_is_translation_enabled"</span>: <span class="k">true</span>,
+  <span class="p">"Languages"</span>: [{ <span class="p">"_id"</span>:<span class="s">"Spanish"</span>, <span class="p">"_is_language_enabled"</span>:<span class="k">true</span>, <span class="p">"PublishedAt"</span>:<span class="s">"..."</span> }],
+  <span class="p">"Theme"</span>: { <span class="p">"Colors"</span>:{}, <span class="p">"CustomColors"</span>:[{ <span class="p">"Id"</span>:<span class="s">"Peach"</span>, <span class="p">"Color"</span>:<span class="s">"rgba(245,214,186,1)"</span>,
+                                <span class="p">"Type"</span>:<span class="s">"Solid"</span>, <span class="p">"IsDark"</span>:<span class="k">false</span>, <span class="p">"IsCustom"</span>:<span class="k">true</span> }]},
+  <span class="p">"Permissions"</span>: [<span class="s">"Admin"</span>, <span class="s">"ViewChild"</span>, <span class="s">"ViewApp"</span>], <span class="p">"AppTemplate"</span>: {}
+}</pre>
+  </section>
+
+  <!-- VARIABLES -->
+  <section id="variables">
+    <h2>App variables</h2>
+    <p>Session-scoped variables a page reads/writes (e.g. computed counts shown on cards).
+       One document per app, id <code>{appId}_session</code>.</p>
+    <pre><span class="k">GET</span> /application/2/{acct}/{appId}/variable/
+{
+  <span class="p">"_id"</span>: <span class="s">"Sample_App_session"</span>,
+  <span class="p">"SessionVariables"</span>: [<span class="s">"Assets_Available"</span>, <span class="s">"Assets_Cost"</span>, <span class="s">"Pending_Request_Count"</span>, ...],
+  <span class="p">"Assets_Available"</span>: { <span class="p">"Name"</span>:<span class="s">"Assets_Available"</span>, <span class="p">"DataType"</span>:<span class="s">"Number"</span>, <span class="p">"DefaultValue"</span>:<span class="n">0</span>,
+                        <span class="p">"Description"</span>:<span class="s">"Available assets in number"</span> },
+  <span class="p">"SysConfig"</span>: { <span class="c">/* JSON/ObjectList/StringList size limits */</span> }
+}</pre>
+  </section>
+
+  <!-- FLOWS -->
+  <section id="flows">
+    <h2>Flows — Process · Case · Form · Dataset</h2>
+    <p>The four data-model kinds. The <strong>list</strong> shape is identical; what differs is
+       <code>Type</code> and the body of the model blob (a process adds a workflow, a case adds a
+       caseflow + board views).</p>
+    <pre><span class="k">GET</span> /flow/2/{acct}/{process|case|form|dataset}/?page_size=300
+[{ <span class="p">"_id"</span>:<span class="s">"Asset_Request"</span>, <span class="p">"Name"</span>:<span class="s">"Asset Request"</span>, <span class="p">"Type"</span>:<span class="s">"Process"</span>,
+   <span class="p">"Status"</span>:<span class="s">"Live"</span>, <span class="p">"_application_id"</span>:<span class="s">"Sample_App_A00"</span>, <span class="p">"LastPublishedAt"</span>:<span class="s">"..."</span> }]</pre>
+    <table>
+      <thead><tr><th>Type</th><th>What it is</th><th>Extra structure</th></tr></thead>
+      <tbody>
+        <tr><td><code>Form</code> / <code>Dataset</code></td><td>A data table (master/list)</td><td>Fields + layout + views only</td></tr>
+        <tr><td><code>Process</code></td><td>An approval workflow</td><td>+ <code>Workflow.Step[]</code> (activities, assignees)</td></tr>
+        <tr><td><code>Case</code></td><td>A status-tracked board</td><td>+ caseflow (statuses/transitions) + board views</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- BLOB -->
+  <section id="blob">
+    <h2>The model draft blob — entity graph</h2>
+    <p>This is the heart of authoring. <code>GET/PUT /metadata/2/{acct}/{type}/{id}/draft</code>,
+       then <code>POST …/publish</code>. A flat dictionary keyed by <code>Id</code>; <code>Root</code>
+       points to the model; parents link children with <code>Parent::Child</code> id arrays.</p>
+    <div class="graph">
+      <div class="node"><span class="kind k-model">Model</span> <span class="nm">Asset_Entry</span>
+        <div class="rel">Model::Row [layout]&nbsp;&nbsp;Model::Field [all fields]&nbsp;&nbsp;Model::Appearance</div></div>
+      <div class="indent graph">
+        <div class="node"><span class="kind k-layout">Row → Column</span> <span class="rel">Column Type:"Section"|"Field", Start/End grid slots, Column::Row | Column::Field</span></div>
+        <div class="node"><span class="kind k-field">Field</span> <span class="rel">Type, Name, Required, + Field::QueryDefinition | Field::Expression | Field::Node</span></div>
+        <div class="indent graph">
+          <div class="node"><span class="kind k-ref">QueryDefinition → Criteria → Condition</span> <span class="rel">reference lookup + filter</span></div>
+          <div class="node"><span class="kind k-expr">Expression → Node tree</span> <span class="rel">computed value</span></div>
+        </div>
+      </div>
+    </div>
+    <details>
+      <summary>Real example — a Text field inside its row/column</summary>
+      <div class="body"><pre>{
+  <span class="p">"Root"</span>: <span class="s">"Asset_Entry"</span>,
+  <span class="p">"Asset_Entry"</span>: { <span class="p">"Kind"</span>:<span class="s">"Model"</span>, <span class="p">"FlowType"</span>:<span class="s">"Form"</span>, <span class="p">"Name"</span>:<span class="s">"Asset Entry"</span>,
+                   <span class="p">"Model::Row"</span>:[<span class="s">"Row_xMUrPu8KV"</span>], <span class="p">"Model::Field"</span>:[<span class="s">"Asset_Tag_Id"</span>, ...] },
+  <span class="p">"Row_xMUrPu8KV"</span>: { <span class="p">"Kind"</span>:<span class="s">"Row"</span>, <span class="p">"Model"</span>:<span class="s">"Asset_Entry"</span>, <span class="p">"Row::Column"</span>:[<span class="s">"Column_Cne5A1mxDU"</span>] },
+  <span class="p">"Column_Cne5A1mxDU"</span>: { <span class="p">"Kind"</span>:<span class="s">"Column"</span>, <span class="p">"Type"</span>:<span class="s">"Section"</span>, <span class="p">"Name"</span>:<span class="s">"Asset Information"</span>,
+                         <span class="p">"Start"</span>:<span class="n">0</span>, <span class="p">"End"</span>:<span class="n">6</span>, <span class="p">"Column::Row"</span>:[<span class="s">"Row_fCJZKJSCsL"</span>, ...] },
+  <span class="p">"Column_Q5ZTV-Mv8t"</span>: { <span class="p">"Kind"</span>:<span class="s">"Column"</span>, <span class="p">"Type"</span>:<span class="s">"Field"</span>, <span class="p">"Start"</span>:<span class="n">0</span>, <span class="p">"End"</span>:<span class="n">3</span>,
+                         <span class="p">"Column::Field"</span>:[<span class="s">"Asset_Tag_Id"</span>] },
+  <span class="p">"Asset_Tag_Id"</span>: { <span class="p">"Kind"</span>:<span class="s">"Field"</span>, <span class="p">"Type"</span>:<span class="s">"Text"</span>, <span class="p">"Name"</span>:<span class="s">"Asset Tag Id"</span>,
+                    <span class="p">"Model"</span>:<span class="s">"Asset_Entry"</span>, <span class="p">"Column"</span>:<span class="s">"Column_Q5ZTV-Mv8t"</span>, <span class="p">"Required"</span>:<span class="k">true</span> },
+  <span class="p">"PublishedAt"</span>: <span class="s">"..."</span>, <span class="p">"_meta_version"</span>: <span class="s">"..."</span>, <span class="p">"CurrentVersion"</span>: <span class="n">2</span>
+}</pre></div>
+    </details>
+    <div class="note">The flat-dictionary format means there is <strong>no "create field" endpoint</strong>.
+      You add a field by inserting its entity (plus a Column to host it and its id into
+      <code>Model::Field</code>) and re-publishing the whole blob.</div>
+  </section>
+
+  <!-- FIELD TYPES -->
+  <section id="fieldtypes">
+    <h2>Field types</h2>
+    <p>The <strong>complete</strong> <code>FieldType</code> set from source (<code>meta_const.py:72–114</code>) —
+       user-facing types plus internal/DB types. The live example app used only a handful.</p>
+    <pre><span class="c">// user-facing</span>
+Text · Textarea · Number · Currency · Date · DateTime · Email · Boolean ·
+Select · Multiselect · DropdownList · Checkbox · CheckList · StarRating · Slider ·
+Reference · ReferenceList · RemoteLookup · Aggregation · SequenceNumber · Geolocation ·
+User · MultiUser · UserList · UserActor · UserAndGroup · UserAndGroupList · UserGroupList
+<span class="c">// internal / DB-level (not authored directly)</span>
+String · StringList · JSON · JSONList · Object · ObjectList · List · DateTimeUTC</pre>
+    <h3>Every attribute a Field can carry</h3>
+    <p class="lead">Beyond <code>Type/Name/Required</code>, a Field entity may hold any of these (source:
+       <code>businessobject/.../metadata/__init__.py</code> Field class). Most are optional.</p>
+    <table>
+      <thead><tr><th>Attribute</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td><code>Widget</code></td><td>render widget override</td></tr>
+        <tr><td><code>Size</code></td><td>field size/length</td></tr>
+        <tr><td><code>DBType</code></td><td>storage type (Reference / ReferenceList / User / UserList / UserAndGroup …) — drives <code>is_reference_field</code></td></tr>
+        <tr><td><code>DefaultValue</code></td><td>default (literal or an expression)</td></tr>
+        <tr><td><code>Label</code> / <code>HelpText</code> / <code>Placeholder</code></td><td>UI copy</td></tr>
+        <tr><td><code>IsUnique</code> / <code>Field::Constraint</code></td><td>unique constraint</td></tr>
+        <tr><td><code>IsInternal</code></td><td>hidden system/computed field</td></tr>
+        <tr><td><code>Permission</code></td><td>explicit field permission (else implicit ReadOnly for computed/lookup)</td></tr>
+        <tr><td><code>BaseMetadata</code></td><td>base model it derives from (System/FormBase/CaseBase…)</td></tr>
+        <tr><td><code>CurrencyTypes</code></td><td>(Currency) allowed currencies, e.g. <code>["USD"]</code></td></tr>
+        <tr><td><code>ReferredList</code></td><td>(Select) the option list id</td></tr>
+        <tr><td><code>Field::Options</code></td><td>(Select) inline option set</td></tr>
+        <tr><td><code>ComponentId</code></td><td>(custom component field) the bundle id</td></tr>
+      </tbody>
+    </table>
+    <h3>All Field relation arrays (21)</h3>
+    <p class="lead">A field links sub-objects with <code>Parent::Child</code> arrays:</p>
+    <pre>Field::QueryDefinition   <span class="c">// reference/user lookup</span>
+Field::Expression        <span class="c">// computed value</span>
+Field::Node              <span class="c">// node refs</span>
+Field::Options           <span class="c">// select options</span>
+Field::Constraint        <span class="c">// unique etc.</span>
+FieldValidation::Criteria    <span class="c">// validation rules</span>
+ColumnVisibility::Criteria   <span class="c">// show/hide conditions</span>
+FieldRequirement::Criteria   <span class="c">// conditional "required"</span>
+<span class="c">// + autofill / aggregate / table cross-refs — see METADATA_ATTRIBUTES_model.md for all 21</span></pre>
+    <div class="note">Every model inherits <strong>system fields</strong> you must never author:
+      <code>_id, Name, _created_by, _modified_by, _created_at, _modified_at, _is_deleted, _deleted_at,
+      _deleted_by, _flow_name, _application_id, _flow_type, _doc_version, _visited, _is_draft,
+      _is_public_form, _expire_at</code> (17, from <code>FormBase</code>).</div>
+  </section>
+
+  <!-- LAYOUT -->
+  <section id="layout">
+    <h2>Layout — rows, columns, sections</h2>
+    <p>The form's visual structure is a Row/Column tree. A <code>Column</code> is either a
+       <strong>Section</strong> (a titled group that holds more rows) or a <strong>Field</strong>
+       slot. <code>Start</code>/<code>End</code> place the column on a 0–6 grid (so 0–3 + 3–6 = two
+       half-width fields side by side).</p>
+    <pre><span class="c">// two fields on one row, each half width</span>
+<span class="p">"Row_fCJZKJSCsL"</span>: { <span class="p">"Kind"</span>:<span class="s">"Row"</span>, <span class="p">"Column"</span>:<span class="s">"Column_Cne5A1mxDU"</span>,
+                   <span class="p">"Row::Column"</span>:[<span class="s">"Column_Q5ZTV-Mv8t"</span>, <span class="s">"Column_VAsYqssg5"</span>] },
+<span class="p">"Column_Q5ZTV-Mv8t"</span>: { <span class="p">"Type"</span>:<span class="s">"Field"</span>, <span class="p">"Start"</span>:<span class="n">0</span>, <span class="p">"End"</span>:<span class="n">3</span>, <span class="p">"Column::Field"</span>:[<span class="s">"Asset_Tag_Id"</span>] },
+<span class="p">"Column_VAsYqssg5"</span>: { <span class="p">"Type"</span>:<span class="s">"Field"</span>, <span class="p">"Start"</span>:<span class="n">3</span>, <span class="p">"End"</span>:<span class="n">6</span>, <span class="p">"Column::Field"</span>:[<span class="s">"Asset_Serial_Number"</span>] }</pre>
+    <p><code>"IsHidden": true</code> on a column hides a field (common for computed helper fields
+       that feed expressions but aren't shown).</p>
+  </section>
+
+  <!-- REFERENCES -->
+  <section id="references">
+    <h2>References &amp; query definitions</h2>
+    <p>A <code>Reference</code> (or <code>User</code>) field looks up rows from another model. The
+       lookup is a <code>QueryDefinition</code>: the target model (<code>LHSModel</code>), which
+       columns to pull (<code>LookupField</code>), which to hide, and an optional filter
+       (<code>Criteria</code>).</p>
+    <pre><span class="p">"Asset_Category"</span>: { <span class="p">"Kind"</span>:<span class="s">"Field"</span>, <span class="p">"Type"</span>:<span class="s">"Reference"</span>, <span class="p">"Name"</span>:<span class="s">"Asset Category"</span>,
+                    <span class="p">"Field::QueryDefinition"</span>:[<span class="s">"QueryDefinition_Jow8S9MO9"</span>], <span class="p">"Required"</span>:<span class="k">true</span> },
+<span class="p">"QueryDefinition_Jow8S9MO9"</span>: {
+  <span class="p">"Kind"</span>:<span class="s">"QueryDefinition"</span>, <span class="p">"Field"</span>:<span class="s">"Asset_Category"</span>,
+  <span class="p">"LHSModel"</span>:<span class="s">"Asset_Categories"</span>, <span class="p">"FlowType"</span>:<span class="s">"Form"</span>,
+  <span class="p">"LookupField"</span>:[{ <span class="p">"Id"</span>:<span class="s">"Category_Id"</span>, <span class="p">"Name"</span>:<span class="s">"Category Id"</span>, <span class="p">"Type"</span>:<span class="s">"Text"</span> },
+                 { <span class="p">"Id"</span>:<span class="s">"CategoryName"</span>, <span class="p">"Name"</span>:<span class="s">"Category Name"</span>, <span class="p">"Type"</span>:<span class="s">"Text"</span> }],
+  <span class="p">"HiddenField"</span>:[<span class="s">"Category_Id"</span>] }</pre>
+    <div class="ok note">This is why <strong>authoring order matters</strong>: a model with Reference
+      fields must be created <em>after</em> the model it points to (the <code>LHSModel</code> must exist).</div>
+  </section>
+
+  <!-- CONDITIONS -->
+  <section id="conditions">
+    <h2>Criteria &amp; conditions (filters)</h2>
+    <p>A <code>QueryDefinition</code> (or a validation, or visibility rule) can carry a
+       <code>Criteria</code> → <code>Condition[]</code>. A condition compares a left field to a
+       value or another field.</p>
+    <pre><span class="p">"Criteria_BT-HAFTn8"</span>: { <span class="p">"Kind"</span>:<span class="s">"Criteria"</span>, <span class="p">"QueryDefinition"</span>:<span class="s">"QueryDefinition_jQDSFse8N"</span>,
+                       <span class="p">"Criteria::Condition"</span>:[<span class="s">"Condition_gcOZNOR8xI"</span>] },
+<span class="p">"Condition_gcOZNOR8xI"</span>: { <span class="p">"Kind"</span>:<span class="s">"Condition"</span>, <span class="p">"LHSField"</span>:<span class="s">"Asset_Master_Id"</span>,
+                        <span class="p">"Operator"</span>:<span class="s">"EQUAL_TO"</span>, <span class="p">"HasArguments"</span>:<span class="k">true</span>,
+                        <span class="p">"RHSType"</span>:<span class="s">"Field"</span>, <span class="p">"RHSField"</span>:<span class="s">"Asset_Master_Id"</span> }
+<span class="c">// RHSType:"Value" → use RHSValue:"In Store" instead of RHSField</span></pre>
+    <p><strong>RHSType</strong> ∈ <code>Value · Field · FilterParam</code>. <strong>Operator</strong> — 25 in
+       source, incl. <code>EQUAL_TO, NOT_EQUAL_TO, GREATER_THAN, GREATER_THAN_OR_EQUAL_TO, LESS_THAN,
+       LESS_THAN_OR_EQUAL_TO, CONTAINS, NOT_CONTAINS, STARTS_WITH, ENDS_WITH, IS_EMPTY, IS_NOT_EMPTY,
+       IN, NOT_IN, BETWEEN</code> … (full list in <code>METADATA_ATTRIBUTES_model.md</code>).</p>
+    <p class="lead">The same <code>Criteria → Condition</code> shape powers four things, via different
+       relation arrays on the field: lookup filters (<code>QueryDefinition::Criteria</code>), validations
+       (<code>FieldValidation::Criteria</code>), visibility (<code>ColumnVisibility::Criteria</code>), and
+       conditional-required (<code>FieldRequirement::Criteria</code>). Condition subclasses:
+       <code>TableAssignment · Validation · Visibility · Requirement · Query · Grid</code>.</p>
+  </section>
+
+  <!-- EXPRESSIONS -->
+  <section id="expressions">
+    <h2>Expressions &amp; node trees (computed fields)</h2>
+    <p>A computed field carries a <code>Field::Expression</code>. The <code>Expression</code> stores
+       both the human formula (<code>ExpressionStr</code>) <em>and</em> a parsed <strong>Node
+       tree</strong> — an ordered graph the engine executes. Node <code>Type</code> ∈
+       <code>Function · Static · Field · RefField</code>; chained calls carry
+       <code>Syntax:"Chain"</code>.</p>
+    <h3>Example 1 — a reference lookup: <code>Asset_Category.CategoryName</code></h3>
+    <pre><span class="p">"Expression_Kr6Og2ERr"</span>: { <span class="p">"Kind"</span>:<span class="s">"Expression"</span>, <span class="p">"Field"</span>:<span class="s">"Category_Name"</span>,
+   <span class="p">"ExpressionStr"</span>:<span class="s">"Asset_Category.CategoryName"</span>, <span class="p">"Expression::Node"</span>:[<span class="s">"Node_EoBvUw6A9o"</span>] },
+<span class="p">"Node_EoBvUw6A9o"</span>: { <span class="p">"Type"</span>:<span class="s">"Function"</span>, <span class="p">"Value"</span>:<span class="s">"GetValue"</span>, <span class="p">"Category"</span>:<span class="s">"Reference"</span>,
+                   <span class="p">"DataType"</span>:<span class="s">"String"</span>, <span class="p">"Node::Node"</span>:[<span class="s">"Node_NiqHEF987a"</span>, <span class="s">"Node_2r8jRlLIlj"</span>] },
+<span class="p">"Node_NiqHEF987a"</span>: { <span class="p">"Type"</span>:<span class="s">"Field"</span>,    <span class="p">"Field"</span>:<span class="s">"Asset_Category"</span>, <span class="p">"DataType"</span>:<span class="s">"Reference"</span> },
+<span class="p">"Node_2r8jRlLIlj"</span>: { <span class="p">"Type"</span>:<span class="s">"RefField"</span>, <span class="p">"RefField"</span>:<span class="s">"CategoryName"</span>, <span class="p">"RefModel"</span>:<span class="s">"Asset_Categories"</span> }</pre>
+    <h3>Example 2 — functions: <code>now()</code> and a chained <code>concatenate(...)</code></h3>
+    <pre><span class="c">// now() → one Function node</span>
+<span class="p">"Node_xYzoV4shc2"</span>: { <span class="p">"Type"</span>:<span class="s">"Function"</span>, <span class="p">"Value"</span>:<span class="s">"now"</span>, <span class="p">"Category"</span>:<span class="s">"DateTime"</span>, <span class="p">"DataType"</span>:<span class="s">"DateTime"</span> }
+
+<span class="c">// concatenate("ACO", initiatedat().day().toText(), ...) → chained functions</span>
+<span class="p">"Node_OLXmaQhnvad"</span>: { <span class="p">"Type"</span>:<span class="s">"Function"</span>, <span class="p">"Value"</span>:<span class="s">"concatenate"</span>, <span class="p">"Node::Node"</span>:[<span class="s">"Node_X3.."</span>, <span class="s">"Node_HV.."</span>, ...] },
+<span class="p">"Node_X3BxlL-oeWk"</span>: { <span class="p">"Type"</span>:<span class="s">"Static"</span>, <span class="p">"Value"</span>:<span class="s">"ACO"</span>, <span class="p">"DataType"</span>:<span class="s">"String"</span> },
+<span class="p">"Node_HVej5jTprIt"</span>: { <span class="p">"Type"</span>:<span class="s">"Function"</span>, <span class="p">"Value"</span>:<span class="s">"toText"</span>, <span class="p">"Syntax"</span>:<span class="s">"Chain"</span>, <span class="p">"Node::Node"</span>:[<span class="s">"Node_sV.."</span>] }
+<span class="c">// → ...day().Chain → initiatedat()  (chains read inner-most first)</span></pre>
+    <h3>Node types &amp; attributes (complete)</h3>
+    <p class="lead">The engine's real enum is <code>NodeType</code> = <code>Function · Static · Field ·
+       AggregateFunction · AggregateField · FetchField</code> (live data also carries
+       <code>RefField</code>). A Node may hold:</p>
+    <pre><span class="p">Type</span>  <span class="p">Value</span>  <span class="p">Field</span>  <span class="p">DataType</span>  <span class="p">Category</span>  <span class="p">RefModel</span>  <span class="p">RefField</span>  <span class="p">RefRootModel</span>
+<span class="p">LookUpPath</span>  <span class="p">FunctionFlowType</span>  <span class="p">Expression</span>  <span class="p">FieldRefCount</span>  <span class="p">Syntax</span>  + <span class="p">Node::Node</span></pre>
+    <div class="warn note"><strong>Not enums (important for a generator):</strong> <code>DataType</code> is a flat
+      list (<code>String/Number/DateTime/Reference/Boolean…</code>), <code>Category</code> is the function
+      registry's namespace keys, and <code>Syntax:"Chain"</code> has <em>no</em> enum constant in source —
+      it's a free-form string. Nothing validates these server-side, so they must be written exactly right.</div>
+    <div class="note">Authoring a formula means writing <em>both</em> <code>ExpressionStr</code> and the
+      matching node tree. The simplest robust path: use the access-key <strong>AI flow_builder</strong>
+      or the <code>fields/suggest</code> endpoint to generate the node tree from the formula string.</div>
+  </section>
+
+  <!-- VIEWS -->
+  <section id="views">
+    <h2>Views &amp; reports</h2>
+    <p>Every flow has views (form view, list view, case board, dataset view) authored via their own
+       draft → softpublish. A <strong>Report</strong> is a chart/pivot view on a flow.</p>
+    <pre><span class="k">GET</span> /flow/2/{acct}/form/{flowId}/report/{reportId}
+{ <span class="p">"Type"</span>:<span class="s">"Report"</span>, <span class="p">"ReportType"</span>:<span class="s">"ChartReport"</span>, <span class="p">"ViewType"</span>:<span class="s">"BarColumnChart"</span>,
+  <span class="p">"ReportAppearance"</span>:{ <span class="p">"ScaleType"</span>:<span class="s">"Linear"</span>,
+    <span class="p">"Labels"</span>:{ <span class="p">"XAxisLabel"</span>:<span class="k">true</span>, <span class="p">"YAxisLabel"</span>:<span class="k">true</span>, <span class="p">"DataLabel"</span>:<span class="k">true</span>, <span class="p">"Legend"</span>:<span class="k">true</span> },
+    <span class="p">"ColorPalette"</span>:[<span class="s">"rgb(var(--lavender-blue))"</span>, ...] } }</pre>
+    <table>
+      <thead><tr><th>Author</th><th>Endpoint</th></tr></thead>
+      <tbody>
+        <tr><td>Form / list view</td><td><code>PUT …/form/{id}/formview/{viewId}/draft</code> → <code>softpublish</code></td></tr>
+        <tr><td>Case board view</td><td><code>PUT …/case/{id}/caseview/{viewId}/draft</code> → <code>softpublish</code></td></tr>
+        <tr><td>Dataset view</td><td><code>PUT …/dataset/{id}/datasetview/{viewId}/draft</code> → <code>softpublish</code></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- WORKFLOW -->
+  <section id="workflow">
+    <h2>Workflow &amp; caseflow</h2>
+    <p>Steps and statuses are <em>not</em> separate endpoints — they live inside the process/case
+       draft blob and publish with it.</p>
+    <div class="grid2">
+      <div class="card"><h3 style="margin-top:0">Process — <code>Workflow.Step[]</code></h3>
+        <p class="lead">Each step is an <code>Activity</code>: a name, a type, an assignee
+          (<code>Resource{ValueType:"AppRole", Value:&lt;roleId&gt;}</code>), and per-step field
+          permissions (<code>Activity::Permission</code>).</p>
+        <p>Author via <code>PUT /metadata/2/{acct}/process/{id}/draft</code> → publish.</p></div>
+      <div class="card"><h3 style="margin-top:0">Case — caseflow</h3>
+        <p class="lead">A status machine stored as its own blob (<code>Kind:"CaseFlow"</code>) with
+          <code>CaseFlow::Status</code> and <code>CaseFlow::State</code>. Transitions are <em>inline</em>:
+          each Status lists its allowed next statuses in <code>OutwardStatus[]</code>.</p>
+        <pre><span class="p">"Status_0001_New"</span>: { <span class="p">"Kind"</span>:<span class="s">"Status"</span>, <span class="p">"Name"</span>:<span class="s">"New"</span>,
+   <span class="p">"Category"</span>:<span class="s">"NotStarted"</span>, <span class="p">"IsSystem"</span>:<span class="k">false</span>,
+   <span class="p">"OutwardStatus"</span>:[<span class="s">"Status_InProgress"</span>, ...],
+   <span class="p">"EntryRule"</span>:[], <span class="p">"ExitRule"</span>:[], <span class="p">"Rule"</span>:[],
+   <span class="p">"SLADisabled"</span>:<span class="k">false</span>, <span class="p">"SLABreachResources"</span>:[], <span class="p">"ColorCode"</span>:<span class="s">""</span> }
+<span class="p">"State_Not_Started"</span>: { <span class="p">"Kind"</span>:<span class="s">"State"</span>, <span class="p">"Category"</span>:<span class="s">"NotStarted"</span>,
+   <span class="p">"IsDefaultState"</span>:<span class="k">true</span>, <span class="p">"IsLastState"</span>:<span class="k">false</span> }</pre>
+        <p class="lead"><code>Status.Category</code> ∈ <code>NotStarted · InProgress · Done · Closed · ReOpened</code>.
+          A parallel <code>casepermission</code> blob holds <code>Permission{Status, Column, Permission}</code>.</p></div>
+    </div>
+  </section>
+
+  <!-- ROLES -->
+  <section id="roles">
+    <h2>Roles &amp; permissions</h2>
+    <p>Two layers. <strong>Roles</strong> (<code>app_role</code>) are simple docs with members —
+       and creating them is <span class="kind k-perm">access-key reachable</span> (verified live).
+       <strong>Permissions</strong> are discrete objects inside the relevant draft blob, referencing
+       the role by <code>_id</code>.</p>
+    <pre><span class="k">POST</span> /app_role/2/{acct}/
+{ <span class="p">"Name"</span>:<span class="s">"Admin Head"</span>, <span class="p">"Description"</span>:<span class="s">"..."</span>, <span class="p">"_application_id"</span>:<span class="s">"..."</span>,
+  <span class="p">"Users"</span>:[{ <span class="p">"_id"</span>:<span class="s">"Us..."</span> }], <span class="p">"Groups"</span>:[] }   <span class="c">// → { "_id": "RoCb_..." }</span>
+
+<span class="k">POST</span> /app_role/2/{acct}/application/{appId}/external/batch   <span class="c">// grant app access</span>
+[{ <span class="p">"_id"</span>:<span class="s">"RoCb_..."</span>, <span class="p">"_application_id"</span>:<span class="s">"{appId}"</span> }]</pre>
+    <table>
+      <thead><tr><th>Permission lives in…</th><th>Shape</th></tr></thead>
+      <tbody>
+        <tr><td>Form view</td><td><code>Model::Permission</code> → <code>Permission{Column, Permission: Editable|ReadOnly|Hidden}</code></td></tr>
+        <tr><td>Process step</td><td><code>Activity::Permission</code> (+ <code>Mandatory</code>), assignee via <code>Activity::Resource</code></td></tr>
+        <tr><td>Case</td><td><code>casepermission</code> → <code>Permission{Status, Column, Permission}</code></td></tr>
+      </tbody>
+    </table>
+    <p><strong>Permission levels</strong> (field visibility): <code>Editable · ReadOnly · Hidden</code>
+       (process steps add <code>Mandatory</code>). <strong>Capability/action permissions</strong> are a
+       large enum in <code>base/base/auth/permissions.py</code> — ~76 Case, ~22 Process, 16 Project, plus
+       Form/Dataset/Application/Team/DecisionTable sets — bundled into built-in roles by the
+       <code>*RoleDefinition</code> dicts in <code>roles.py</code>.</p>
+    <p class="lead">A process step's assignee is a <code>Resource{ValueType, Value}</code> where
+       <code>ValueType</code> ∈ <code>User · Group · AppRole · ServiceAccount · Field · Expression ·
+       FlowDataset · FlowForm · FlowUser · FlowTable</code>. Workflow step kinds:
+       <code>StartEvent · UserTask · MultiUserTask · Parallel · GotoTask · SendBackToInitiator ·
+       Subflow · EndEvent</code>.</p>
+    <div class="note">Field-level permissions are <strong>positional</strong>, not keyed by role name —
+      the role↔field binding is by the role's <code>_id</code> in the permission object.</div>
+  </section>
+
+  <!-- PAGES -->
+  <section id="pages">
+    <h2>Pages — the page schema graph</h2>
+    <p>A page is its own entity graph (parallel to the model blob):
+       <code>Page → Container → Component → FieldMapping → Property</code>, with
+       <code>EventMapping</code>, <code>VariableRef</code>, and <code>Style</code> as cross-cuts.
+       <code>GET /metadata/2/{acct}/application/{appId}/page/{pageId}/schema</code>.</p>
+    <div class="graph">
+      <div class="node"><span class="kind k-page">Page</span> <span class="rel">Settings, Page::Container, Page::Component, Page::EventMapping, Page::VariableRef, Page::InputParameter</span></div>
+      <div class="indent graph">
+        <div class="node"><span class="kind k-page">Container</span> <span class="rel">Type: Body|Layout|Column|Container|Component → nests Containers/Components + Style</span></div>
+        <div class="node"><span class="kind k-page">Component</span> <span class="rel">Script "general/card"|"report/chart", Data{visualization_type, flow_id, report_id}</span></div>
+        <div class="indent graph">
+          <div class="node"><span class="kind k-page">FieldMapping → Property</span> <span class="rel">Type Value|Variable|SimpleFilter|Code|Page → binds data/literals</span></div>
+          <div class="node"><span class="kind k-expr">EventMapping</span> <span class="rel">on_load/on_click → JSAction (kf.api + setVariable) | Redirection (→ pageId)</span></div>
+          <div class="node"><span class="kind k-ref">VariableRef</span> <span class="rel">binds a Property to an app variable</span></div>
+        </div>
+      </div>
+    </div>
+    <details><summary>Example — a metric "Card" bound to an app variable, with an on-load fetch</summary>
+      <div class="body"><pre><span class="p">"Component_d7o7uPvbg"</span>: { <span class="p">"Kind"</span>:<span class="s">"Component"</span>, <span class="p">"Name"</span>:<span class="s">"Card"</span>, <span class="p">"Scripts"</span>:<span class="s">"general/card"</span>,
+   <span class="p">"ManifestParams"</span>:{ <span class="p">"manifest_id"</span>:<span class="s">"Card"</span>, <span class="p">"visualization_type"</span>:<span class="s">"card"</span> },
+   <span class="p">"Component::FieldMapping"</span>:[<span class="s">"FieldMapping_P1yRFk-4IQ"</span>, ...] },
+<span class="p">"FieldMapping_P1yRFk-4IQ"</span>: { <span class="p">"Name"</span>:<span class="s">"count"</span>, <span class="p">"FieldMapping::Property"</span>:[<span class="s">"Property_hoYCih9Bg"</span>] },
+<span class="p">"Property_hoYCih9Bg"</span>: { <span class="p">"Type"</span>:<span class="s">"Variable"</span>, <span class="p">"Property::VariableRef"</span>:[<span class="s">"VariableRef_qizb5uRq2W"</span>] },
+<span class="p">"VariableRef_qizb5uRq2W"</span>: { <span class="p">"Type"</span>:<span class="s">"ApplicationVariable"</span>, <span class="p">"Name"</span>:<span class="s">"Assets_Available"</span> },
+
+<span class="c">// the on-load event populates that variable</span>
+<span class="p">"EventMapping_OdsFdbafw"</span>: { <span class="p">"Type"</span>:<span class="s">"JSAction"</span>, <span class="p">"Name"</span>:<span class="s">"on_load"</span>,
+   <span class="p">"EventMapping::Property"</span>:[{ <span class="p">"Type"</span>:<span class="s">"Value"</span>, <span class="p">"Value"</span>:<span class="s">"let r = await kf.api(...); kf.app.setVariable('Assets_Available', ...)"</span> }] }</pre></div>
+    </details>
+    <h3>Page entity type enums (source-verified)</h3>
+    <table>
+      <thead><tr><th>Entity</th><th><code>Type</code> values</th><th>Source</th></tr></thead>
+      <tbody>
+        <tr><td>Container</td><td><code>Container · Body · Tab · Popup · MasterDetail · Column · Layout</code></td><td><code>page_model_constants.py:73</code></td></tr>
+        <tr><td>Property</td><td><code>Page · SimpleFilter · FilterParam · Object · Value · Variable</code></td><td><code>page_model_constants.py:88</code></td></tr>
+        <tr><td>EventMapping</td><td><code>JSAction · OpenPopup</code> (<code>Redirection</code> seen live, not a named constant)</td><td><code>widget_transformer.py</code></td></tr>
+        <tr><td>VariableRef</td><td><code>InputParameter · ApplicationVariable · EventParameter</code></td><td><code>model_constants.py:167</code></td></tr>
+      </tbody>
+    </table>
+    <p class="lead">Other page entities also exist: <code>Variable, Popup, Tabs, Tab, MasterDetail,
+       Criteria, Condition</code> — full attribute tables in <code>METADATA_ATTRIBUTES_page.md</code>.</p>
+    <div class="ok note">For a richer UI than the stock page builder, the <strong>kf-app-builder</strong>
+      plugin generates a themed React Custom-UI instead of this page graph. <code>kf-app-author</code>
+      builds the backend; <code>kf-app-builder</code> builds the frontend.</div>
+  </section>
+
+  <!-- INTEGRATIONS -->
+  <section id="integrations">
+    <h2>Integrations</h2>
+    <p>Trigger→action automations. A connector lists entities of kind <code>Trigger</code> or
+       <code>Action</code> (each versioned).</p>
+    <pre><span class="k">GET</span> /flow/2/{acct}/integration
+[{ <span class="p">"Name"</span>:<span class="s">"asset request to assignment"</span>, <span class="p">"Type"</span>:<span class="s">"Integration"</span>, <span class="p">"IsActive"</span>:<span class="k">false</span>,
+   <span class="p">"Connectors"</span>:[{ <span class="p">"Name"</span>:<span class="s">"Kissflow Process"</span>, <span class="p">"Entities"</span>:[
+      { <span class="p">"Kind"</span>:<span class="s">"Trigger"</span>, <span class="p">"Name"</span>:<span class="s">"When an item is created"</span>, <span class="p">"Version"</span>:<span class="s">"2.0.5"</span> },
+      { <span class="p">"Kind"</span>:<span class="s">"Action"</span>,  <span class="p">"Name"</span>:<span class="s">"Create and submit a new item"</span>, <span class="p">"Version"</span>:<span class="s">"3.0.0"</span> }]}]}]</pre>
+  </section>
+
+  <!-- EXPORT -->
+  <section id="export">
+    <h2>Object types from a full app export</h2>
+    <p>A complete app export (<code>Professional_Services_Executive_Dashboard</code>) revealed objects
+       the live REST dumps only hinted at. The <strong>export folder layout is the object model</strong>:
+       each object is a folder with <code>flow/&lt;id&gt;.json</code> (the doc) and
+       <code>metadata/&lt;id&gt;.json</code> (the entity-graph blob); sub-objects nest.</p>
+    <pre><span class="t1">{type}</span>/<span class="r">{flowId}</span>/flow/<span class="r">{flowId}</span>.json        <span class="c"># the document (name, status, security…)</span>
+<span class="t1">{type}</span>/<span class="r">{flowId}</span>/metadata/<span class="r">{flowId}</span>.json    <span class="c"># the draft/published blob (entity graph)</span>
+form/{id}/formview/{viewId}/…              case/{id}/caseflow|casepermission|caseview/…
+process/{id}/report/{reportId}/…          application/{appId}/page/{pageId}/…</pre>
+    <div class="grid2">
+      <div class="card"><h3 style="margin-top:0"><span class="kind k-model">List</span></h3>
+        <p class="lead">An option list (what a <code>Select</code> field's <code>ReferredList</code> points
+          to). Flow doc only — no metadata blob.</p>
+        <pre><span class="p">"Type"</span>:<span class="s">"List"</span>, <span class="p">"ListItems"</span>:[<span class="s">"Yes"</span>,<span class="s">"No"</span>],
+<span class="p">"ChildTables"</span>:[{<span class="p">"_id"</span>,<span class="p">"Name"</span>}], <span class="p">"ApprovalRule"</span>:<span class="k">null</span>,
+<span class="p">"Security"</span>:{<span class="p">"AllowAllFlows"</span>:<span class="k">true</span>,<span class="p">"AllowedFlows"</span>:[]},
+<span class="p">"PageAccess"</span>:[{ ..., <span class="p">"Permission"</span>:[<span class="s">"Admin"</span>] }]</pre></div>
+      <div class="card"><h3 style="margin-top:0"><span class="kind k-page">Views</span> — FormView · CaseView</h3>
+        <p class="lead">A view-definition blob: <code>BaseModel</code>, <code>Columns</code>,
+          <code>Filter</code>, <code>Sort</code>, with <code>ViewType</code> (e.g. <code>Gallery</code>,
+          <code>Kanban</code>). Nested under the flow it belongs to.</p></div>
+      <div class="card"><h3 style="margin-top:0"><span class="kind k-field">Report blob</span></h3>
+        <p class="lead">Thin flow doc + a metadata graph: <code>Report → ReportField / Column / Value /
+          Filter / Sort</code> + chart/pivot <code>Appearance</code> (<code>AggregateFunction</code>,
+          <code>ColorPalette</code>, pivot <code>Total</code>/<code>HeatMap</code>).</p></div>
+      <div class="card"><h3 style="margin-top:0"><span class="kind k-expr">Integration blob</span></h3>
+        <p class="lead">On disk it's a <em>flat Kind-graph</em> — <code>Trigger / Action / FieldMapping /
+          Property / Criteria / Condition</code> — not the <code>Connectors[].Entities[]</code> the list
+          API returns.</p></div>
+      <div class="card"><h3 style="margin-top:0"><span class="kind k-page">Navigation</span></h3>
+        <p class="lead">The app's menu is its own blob: <code>Navigation → Menu → SubMenu → Property</code>
+          (distinct from pages).</p></div>
+      <div class="card"><h3 style="margin-top:0"><span class="kind k-page">Custom Component</span></h3>
+        <p class="lead"><code>manifest</code> = an envelope with <code>Manifest</code>/<code>DraftManifest</code>
+          (<code>Source:"Zip", visualization_type:"custom", scripts.web, properties, version</code>); bundle =
+          static <code>index.html</code>+<code>index.js</code> using the global <code>kf</code> SDK. A page
+          binds it via a Component whose <code>Data.component_id</code> = the component id.</p></div>
+    </div>
+    <h3>Component / visualization inventory (from real pages)</h3>
+    <p class="lead">What a page generator can place — <code>Component.Data.visualization_type</code>:</p>
+    <pre>card · label · button · icon · image · tab · table · tabular ·
+barcolumnchart · barrowchart · piechart · doughnutchart · autochart ·
+kanban · gallery · form · custom
+<span class="c">// Component.Data also carries: flow_id, flow_type, report_id, view_id, component_id, sub_view_type</span></pre>
+    <p class="lead">New <strong>FieldMapping.Type</strong>: <code>Style · Icon · Toggle · Dropdown</code>
+       (+ Object, Hiddenproperty, TooltipPositionPicker, Richtext — all source-confirmed). New
+       <strong>EventMapping.Name</strong>: <code>on_submit · on_discard</code> (in source fixtures);
+       <code>on_close · on_tab_change</code> appear in the export but have <strong>no source constant</strong>
+       — emit with care. <code>Style.Value</code> is a flat <code>{cssKey:"…"}</code> map using
+       <code>var(--kf-app-*)</code> tokens (the ↔ <code>{ref}</code> mapping is in <code>mappings.py:530–609</code>).</p>
+    <div class="ok note">Full deltas (every new attribute, with example file paths and source citations) are in
+      <code>DELTA_ProfServ_model.md</code> and <code>DELTA_ProfServ_page.md</code>. The model-side deltas
+      are source-verified against <code>kissflow-xg</code>; the page-side deltas are verified against the
+      real published export (authoritative ground truth) and marked accordingly.</div>
+  </section>
+
+  <!-- API -->
+  <section id="api">
+    <h2>Authoring API — what an access key can do</h2>
+    <p>Derived from the <code>kissflow-xg</code> source. Public <code>/2/</code> = reachable;
+       internal <code>/kfv2/</code> = service-only (not reachable).</p>
+    <table>
+      <thead><tr><th>Action</th><th>Endpoint</th><th>Access key?</th></tr></thead>
+      <tbody>
+        <tr><td>Create app</td><td><code>POST /flow/2/{acct}/application/</code></td><td>public</td></tr>
+        <tr><td>Create model shell</td><td><code>POST /flow/2/{acct}/{type}/</code></td><td><span class="kind k-expr">yes ✓</span></td></tr>
+        <tr><td>Author fields / layout / steps</td><td><code>PUT /metadata/2/.../{type}/{id}/draft</code> → <code>publish</code></td><td><code>X-Api-Key</code> class</td></tr>
+        <tr><td>AI generate a draft from a prompt</td><td><code>POST /metadata/2/{acct}/flow_builder/{type}/create</code></td><td><span class="kind k-expr">yes ✓</span></td></tr>
+        <tr><td>Create role + members + app access</td><td><code>POST /app_role/2/{acct}/…</code></td><td><span class="kind k-expr">yes ✓ (verified live)</span></td></tr>
+        <tr><td>Create page shell + layout</td><td><code>POST /flow/2/.../page/</code> → <code>/metadata/2/.../page/{id}/draft</code></td><td>public</td></tr>
+        <tr><td>Model bootstrap (fields tables)</td><td><code>POST /metadata/kfv2/...</code></td><td><span class="kind k-perm">internal only</span></td></tr>
+      </tbody>
+    </table>
+    <div class="warn note">Creating a model/field has <strong>no direct public endpoint</strong> — you
+      mint a shell (<code>/flow/2/.../{type}/</code>, which triggers the internal bootstrap for you)
+      and then write the body through draft/publish. A blind <code>POST /form/2/...</code> 404s.</div>
+  </section>
+
+  <!-- ORDER -->
+  <section id="order">
+    <h2>Authoring order</h2>
+    <p>Build an app in dependency order so references resolve:</p>
+    <div class="tree"><span class="t1">1.</span> Application                 <span class="cm"># POST /flow/2/{acct}/application/</span>
+<span class="t1">2.</span> Lists / Datasets / masters   <span class="cm"># so Reference fields have a target (LHSModel)</span>
+<span class="t1">3.</span> Forms                        <span class="cm"># create shell → draft fields/layout → publish</span>
+<span class="t1">4.</span> Processes / Cases            <span class="cm"># may reference the forms above; add workflow/caseflow</span>
+<span class="t1">5.</span> Views                        <span class="cm"># formview/caseview draft → softpublish</span>
+<span class="t1">6.</span> Roles                        <span class="cm"># app_role create + grant app access  (access-key ✓)</span>
+<span class="t1">7.</span> Permissions                  <span class="cm"># field/step/status perms keyed by role _id</span>
+<span class="t1">8.</span> Pages                        <span class="cm"># native page graph — OR hand to kf-app-builder for React UI</span></div>
+  </section>
+
+  <!-- SOURCE -->
+  <section id="source">
+    <h2>Source cross-reference</h2>
+    <p>The observed structures were verified against the Kissflow source. Key definitions:</p>
+    <table>
+      <thead><tr><th>Object</th><th>Defined in (kissflow-xg)</th></tr></thead>
+      <tbody>
+        <tr><td>Field, Expression, Node, QueryDefinition, Criteria, Condition</td><td><code>businessobject/core/server/metadata/__init__.py</code></td></tr>
+        <tr><td>Relation constants (<code>Model::Field</code> …)</td><td><code>businessobject/core/server/metadata/metadata_blob.py</code></td></tr>
+        <tr><td>Field types</td><td><code>metadata/utils/constants/model_constants.py</code></td></tr>
+        <tr><td>Expression / function engine</td><td><code>businessobject/core/engine/function/</code></td></tr>
+        <tr><td>Authoring routes (create shell, draft, publish, flow_builder)</td><td><code>flow/route/*</code>, <code>metadata/route/*</code></td></tr>
+        <tr><td>Roles &amp; members</td><td><code>user/route/app_role.py</code></td></tr>
+      </tbody>
+    </table>
+    <div class="note">A few observed strings (<code>Node Type:"RefField"</code>, page
+      <code>Property Type:"Code"</code>, <code>EventMapping Type:"JSAction"|"Redirection"</code>) are
+      free-form in the source (no enum guard) — important for a generator to get exactly right since
+      nothing validates them server-side. Full detail in <code>APP_METADATA_MODEL.md</code>.</div>
+  </section>
+
+  <div class="foot">
+    Generated for the <strong>kf-app-author</strong> plugin · structures captured live from
+    a real Kissflow app export and verified against the <code>kissflow-xg</code> source ·
+    companion docs: <code>METADATA_ATTRIBUTES_model.md</code> &amp; <code>METADATA_ATTRIBUTES_page.md</code>
+    (exhaustive, source-cited attribute catalogs), <code>OBSERVED_OBJECTS.md</code>,
+    <code>APP_METADATA_MODEL.md</code>, <code>AUTHORING_API_MAP.md</code>.
+  </div>
+</main>
+</div>
+</body>
+</html>

@@ -1,10 +1,10 @@
 {
   "name": "kissflow-app-ui",
   "displayName": "Kissflow App UI",
-  "description": "Scaffold and build a custom UI for a Kissflow app with @sooryakanth/app-ui — handles scaffolding, schema sync, and building the screens.",
-  "version": "0.1.2",
+  "description": "Author a whole Kissflow app (data models, roles, workflows) from a BRD AND build its UI — native Kissflow pages or a custom shadcn React UI. Merges the kf-app-author engine with the @abdul-kissflow/app-ui custom-UI pipeline.",
+  "version": "0.3.0",
   "author": {
     "name": "sooryakanth"
   },
-  "keywords": ["kissflow", "app-ui", "custom-ui", "scaffold", "vibe-coding"]
+  "keywords": ["kissflow", "app-ui", "custom-ui", "low-code", "metadata", "authoring", "agents", "scaffold", "vibe-coding"]
 }

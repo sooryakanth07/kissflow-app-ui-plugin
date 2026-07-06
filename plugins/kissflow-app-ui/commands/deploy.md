@@ -26,6 +26,9 @@ Steps:
    (the `dist/` bundle + a `manifest.json` of `{ Category: "Page", Framework: "React" }`).
    If the build fails, fix the errors and re-run before continuing.
 
+   **Note:** programmatic **zip auto-upload is not wired yet** (`deploy-ui`'s zip path fails fast).
+   Deploy the zip **manually** (step 2) OR use **`--url`** mode to point Custom UI at a hosted/dev URL.
+
 2. Tell the user how to publish (this part is manual — Kissflow has no publish API):
    - In the Kissflow App Builder for the connected app → **Settings → Custom UI**.
    - **Prod**: upload the generated `<your-project>.zip`. **Dev**: set the dev-server URL.

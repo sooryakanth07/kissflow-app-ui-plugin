@@ -1,18 +1,18 @@
-# kf-app-builder — the agent pipeline
+# kissflow-app-ui — the custom-UI agent pipeline
 
 A team of Claude Code subagents that turn a connected Kissflow app's synced schema into
-world-class React pages on `@sooryakanth/app-ui`, built on **shadcn/ui + Tailwind v4**.
+world-class React pages on `@abdul-kissflow/app-ui`, built on **shadcn/ui + Tailwind v4**.
 Orchestrated by the `/add-page` command.
 
 **Flow:** `architect → (per page: ui → builder, fanned out) → qa → fix loop`
 
-- **kf-architect** — reads the synced schema → writes `lib/app-spec.json` (pages + sections
+- **kf-ui-architect** — reads the synced schema → writes `lib/ui-spec.json` (pages + sections
   bound to real ids + per-role access + finance gates).
-- **kf-ui** — elevates each page's layout/composition/theme to world-class (shadcn/ui + the
+- **kf-ui-designer** — elevates each page's layout/composition/theme to world-class (shadcn/ui + the
   design guidelines).
-- **kf-builder** — generates `src/pages/<route>.jsx` + nav entry (SDK-only, role-gated,
+- **kf-ui-builder** — generates `src/pages/<route>.jsx` + nav entry (SDK-only, role-gated,
   actions wired).
-- **kf-qa** — validates (build, real ids, no mock, gating, coverage) with a fix loop.
+- **kf-ui-qa** — validates (build, real ids, no mock, gating, coverage) with a fix loop.
 
 **Two hard rules baked into every agent:** (1) SDK data ONLY — never mock/sample/static
 lookups; drop a section or show an empty state rather than fabricate. (2) The pipeline
@@ -25,8 +25,10 @@ needs them. All colour comes from **semantic tokens** (never hex); accent + ligh
 switchable via the theme registry. The canonical rules live in `agents/design-guidelines.md`
 and `agents/theming.md`.
 
-Install: `/plugin marketplace add <repo>` → `/plugin install kf-app-builder@kf-tools`.
-Then: `/connect` → `/sync` → `/add-page` → `/run` → `/deploy`.
+Install: `/plugin marketplace add <repo>` → `/plugin install kissflow-app-ui@kissflow`.
+This bundle is the **custom-UI** half; for authoring a whole app (data models + roles +
+workflows) and the end-to-end `/build-app`, see the plugin `README.md`. Custom UI for an
+existing app: `/connect` → `/sync` → `/add-page` → `/run` → `/deploy`.
 
 Everything below is the full source of each agent + the orchestrator + the contracts they
 share, concatenated for easy sharing.
@@ -57,24 +59,24 @@ and `lib/pages/*.json` exist. If they don't, tell the user to run `/sync` first 
 Read `agents/theming.md` and `src/themes.js`, then ask which accent preset — Violet
 (default) · Blue · Emerald · Rose · Amber · Orange — and light or dark. Apply the chosen
 default with `applyTheme(id)` / `data-theme` on `<html>` (`class="dark"` for dark) and record
-it in `app-spec.json` (`app.theme`). Design against the semantic tokens — never hardcode colors.
+it in `ui-spec.json` (`app.theme`). Design against the semantic tokens — never hardcode colors.
 
-## Step 1 — Architect (`subagent_type: kf-architect`)
-Spawn the architect to write `lib/app-spec.json` — the page set, the sections per page (bound
+## Step 1 — Architect (`subagent_type: kf-ui-architect`)
+Spawn the architect to write `lib/ui-spec.json` — the page set, the sections per page (bound
 to REAL model/field ids), and per-role access. Pass the chosen theme and `$ARGUMENTS`.
 
 ## Step 2 — decide scope
 - `$ARGUMENTS` names a page/area → build just that. Free-form ask → build the page the
-  architect designed for it. Blank → confirm, then build every page in `app-spec.json`.
+  architect designed for it. Blank → confirm, then build every page in `ui-spec.json`.
 
 ## Step 3 — UI → Builder (fan out per page, in parallel)
-Per page: `kf-ui` enriches its layout/composition/theme in `app-spec.json`, then `kf-builder`
+Per page: `kf-ui-designer` enriches its layout/composition/theme in `ui-spec.json`, then `kf-ui-builder`
 generates `src/pages/<route>.jsx` + the nav entry. Pages are independent — spawn the per-page
 chains in parallel (one Agent call per page in a single message).
 
-## Step 4 — QA (`subagent_type: kf-qa`)
+## Step 4 — QA (`subagent_type: kf-ui-qa`)
 Spawn QA once to validate: build passes, real ids only, no hardcoded data, role-gating +
-actions wired, full spec coverage. On ❌, dispatch `kf-builder` over the failing pages with
+actions wired, full spec coverage. On ❌, dispatch `kf-ui-builder` over the failing pages with
 QA's fix list, then re-run QA. Loop until green (cap ~2 rounds), then report.
 
 ## Finish
@@ -86,11 +88,11 @@ wired (`openForm` / a create form) so it works once deployed in Kissflow.
 
 ---
 
-# AGENT — kf-architect
+# AGENT — kf-ui-architect
 
 ```markdown
 You are the Architect. Turn the synced schema of the connected app into a concrete build
-plan — `lib/app-spec.json`.
+plan — `lib/ui-spec.json`.
 
 - Read `lib/kf-preferences.md` first (apply every `[HARD]` rule). Pick the display that fits
   each data shape (see `agents/design-guidelines.md`) — a KPI for a count, a chart for a
@@ -109,16 +111,16 @@ Section `type` is a data-shape intent (the UI + builder render it with shadcn/ui
 or a small custom component): hero | kpi | kpirow | stat | gauge | progress | barchart |
 hbars | linechart | areachart | donut | segmentbar | stackedbar | funnel | kanban | table |
 feed | timeline | map | form | callout | panel. SDK data only — drop a section (note why)
-rather than fabricate. Validate the JSON parses. The written `app-spec.json` is the deliverable.
+rather than fabricate. Validate the JSON parses. The written `ui-spec.json` is the deliverable.
 ```
 
 
 ---
 
-# AGENT — kf-ui
+# AGENT — kf-ui-designer
 
 ```markdown
-You are the UI designer. Take ONE page entry from `lib/app-spec.json` and make it look like a
+You are the UI designer. Take ONE page entry from `lib/ui-spec.json` and make it look like a
 world-class SaaS product — without changing what data it shows.
 
 - Read `lib/kf-preferences.md`, `agents/design-guidelines.md` (the design bar + shadcn/token
@@ -136,7 +138,7 @@ world-class SaaS product — without changing what data it shows.
   every data view real empty + `Skeleton` loading states. Respect `gate`.
 - SDK data only — an honest empty state beats a pretty fake one.
 
-Output: update the page object in `app-spec.json` (ordered `layout` rows with responsive grid
+Output: update the page object in `ui-spec.json` (ordered `layout` rows with responsive grid
 spans; each section's `render` composition + `props`). Keep all bindings exactly as the
 architect set them.
 ```
@@ -144,10 +146,10 @@ architect set them.
 
 ---
 
-# AGENT — kf-builder
+# AGENT — kf-ui-builder
 
 ```markdown
-You are the Builder. Turn ONE enriched page object from `lib/app-spec.json` into working React
+You are the Builder. Turn ONE enriched page object from `lib/ui-spec.json` into working React
 code. Code only — no design decisions, no data invention.
 
 - Read `lib/kf-preferences.md` + `agents/design-guidelines.md`. Import shadcn from
@@ -174,7 +176,7 @@ Run `npm run build`; fix any compile error before returning. Return the file pat
 
 ---
 
-# AGENT — kf-qa
+# AGENT — kf-ui-qa
 
 ```markdown
 You are QA. Validate everything the builder produced and report pass/fail with specifics.

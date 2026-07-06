@@ -1,0 +1,37 @@
+{
+  "app": { "id": "App_Deals_A00", "domain": "acme", "accountId": "Ac00000001" },
+  "dataModels": [
+    {
+      "name": "Deal",
+      "id": "Deal_A00",
+      "type": "Process",
+      "description": "Sales deals moving through a pipeline",
+      "fields": [
+        { "name": "name",   "id": "Name_txt_01",     "type": "Text",     "required": true },
+        { "name": "amount", "id": "Amount_num_02",    "type": "Currency", "required": true },
+        { "name": "stage",  "id": "Stage_sel_03",     "type": "Select",   "required": true },
+        { "name": "owner",  "id": "Owner_usr_04",     "type": "User",     "required": false },
+        { "name": "status", "id": "Status_sel_05",    "type": "Select",   "required": false }
+      ],
+      "systemFields": [
+        { "name": "created_at", "id": "_created_at", "type": "DateTime", "required": false }
+      ]
+    },
+    {
+      "name": "Account",
+      "id": "Account_A00",
+      "type": "Form",
+      "description": "Customer accounts",
+      "fields": [
+        { "name": "name",     "id": "Acc_Name_txt_01", "type": "Text",     "required": true },
+        { "name": "industry", "id": "Industry_sel_02",  "type": "Select",   "required": false },
+        { "name": "arr",      "id": "Arr_num_03",       "type": "Currency", "required": false }
+      ]
+    }
+  ],
+  "roles": [
+    { "id": "Sales_Rep_R01",     "name": "Sales Rep",     "description": "Owns deals", "userCount": 12 },
+    { "id": "Sales_Manager_R02", "name": "Sales Manager", "description": "Approves deals", "userCount": 3 }
+  ],
+  "pages": []
+}

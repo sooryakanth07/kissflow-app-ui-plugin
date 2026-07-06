@@ -1,0 +1,21 @@
+{
+  "app": { "name": "Sales Enquiry", "id": "Sales_Enquiry_A00" },
+  "personas": [{ "id": "Sales Rep", "name": "Sales Rep", "goals": ["log enquiries", "track my pipeline"] },
+               { "id": "Sales Manager", "name": "Sales Manager", "goals": ["see stuck enquiries"] }],
+  "journeys": [{ "id": "j1", "persona": "Sales Rep", "story": "rep logs an enquiry and sees it on their dashboard" }],
+  "roles": [{ "name": "Sales Rep" }, { "name": "Sales Manager" }],
+  "lists": [{ "name": "Region", "items": ["APAC", "EMEA", "Americas"] },
+            { "name": "Stage", "items": ["New", "Qualified", "Won", "Lost"] }],
+  "forms": [{ "name": "Enquiry", "section": "Enquiry Details", "fields": [
+    { "name": "Customer Name", "type": "Text", "required": true },
+    { "name": "Email", "type": "Email" },
+    { "name": "Deal Value", "type": "Currency", "currency": "USD" },
+    { "name": "Region", "type": "Reference", "ref": "Region", "lookup": [{ "name": "Region Name", "type": "Text" }] },
+    { "name": "Stage", "type": "Select", "referredList": "Stage" },
+    { "name": "Owner", "type": "User" },
+    { "name": "Display Title", "type": "Text", "formula": "concatenate(Customer_Name, \" - \", Region.Region_Name)" }
+  ]}],
+  "pages": [{ "name": "Rep Home", "role": "Sales Rep", "cards": [{ "label": "My Open Enquiries" }, { "label": "My Pipeline Value" }] },
+            { "name": "Manager Home", "role": "Sales Manager", "cards": [{ "label": "Stuck Enquiries" }, { "label": "Team Pipeline" }] }],
+  "permissions": [{ "role": "Sales Rep", "model": "Enquiry", "level": "Editable" }]
+}

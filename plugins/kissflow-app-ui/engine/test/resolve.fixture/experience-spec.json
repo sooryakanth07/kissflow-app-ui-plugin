@@ -1,0 +1,45 @@
+{
+  "app": "Deal Desk",
+  "roles": [
+    {
+      "role": "Sales Manager",
+      "landing": "mgr-dashboard",
+      "nav": [
+        { "page": "mgr-dashboard", "label": "Overview", "icon": "grid" },
+        { "page": "deals",         "label": "Deals",    "icon": "layers" }
+      ]
+    },
+    {
+      "role": "Sales Rep",
+      "landing": "rep-deals",
+      "nav": [
+        { "page": "rep-deals", "label": "My Deals", "icon": "briefcase" }
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "id": "mgr-dashboard",
+      "role": "Sales Manager",
+      "title": "Sales Overview",
+      "archetype": "dashboard",
+      "widgets": [
+        { "type": "kpi",   "title": "Open Deals",     "span": 3,  "bind": { "entity": "Deal", "measure": "count", "scope": "all" } },
+        { "type": "statcard", "title": "Pipeline ARR", "span": 3, "bind": { "entity": "Account", "measure": "sum", "field": "arr", "scope": "all" } },
+        { "type": "chart", "title": "Deals by Stage", "span": 6,  "bind": { "entity": "Deal", "measure": "sum", "field": "amount", "dim": "stage" } },
+        { "type": "table", "title": "Recent Deals",   "span": 12, "bind": { "entity": "Deal", "scope": "all", "columns": ["name", "amount", "stage", "owner"] } },
+        { "type": "action","title": "New Deal",       "span": 3,  "bind": { "entity": "Deal", "action": "create" } },
+        { "type": "kpi",   "title": "Ghost Metric",   "span": 3,  "bind": { "entity": "Invoice", "measure": "count", "scope": "all" } }
+      ]
+    },
+    {
+      "id": "rep-deals",
+      "role": "Sales Rep",
+      "title": "My Deals",
+      "archetype": "list",
+      "widgets": [
+        { "type": "queue", "title": "My Open Deals", "span": 12, "bind": { "entity": "Deal", "scope": "mine", "columns": ["name", "amount", "status"] } }
+      ]
+    }
+  ]
+}

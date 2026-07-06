@@ -7,8 +7,8 @@
     {
       "name": "kissflow-app-ui",
       "displayName": "Kissflow App UI",
-      "description": "Scaffold and build custom UIs for Kissflow apps — folder routing, layouts, the Kissflow SDK, and data-model sync.",
-      "version": "0.1.0",
+      "description": "Author a whole Kissflow app (data models, roles, workflows) from a BRD and build its UI — native pages or a custom shadcn React UI.",
+      "version": "0.3.0",
       "source": "./plugins/kissflow-app-ui"
     }
   ]

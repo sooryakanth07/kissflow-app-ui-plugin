@@ -1,0 +1,1057 @@
+{
+  "app": {
+    "name": "Procurement Suite",
+    "description": "Vendor, catalog and purchase-order management with approvals"
+  },
+  "personas": [
+    {
+      "id": "requester",
+      "name": "Requester",
+      "goals": [
+        "Raise purchase orders quickly and track them to issuance",
+        "See which of my POs are stuck",
+        "Understand how much I've spent this period"
+      ]
+    },
+    {
+      "id": "approving-manager",
+      "name": "Approving Manager",
+      "goals": [
+        "Clear approvals fast",
+        "Watch my team's spend",
+        "Spot vendor concentration risk"
+      ]
+    },
+    {
+      "id": "finance",
+      "name": "Finance",
+      "goals": [
+        "Pay approved POs on time",
+        "Track spend vs budget",
+        "Keep vendor data clean for audit"
+      ]
+    },
+    {
+      "id": "admin",
+      "name": "Admin",
+      "goals": [
+        "Keep vendor master and catalog accurate",
+        "Full visibility of every PO",
+        "Govern access and process health"
+      ]
+    }
+  ],
+  "journeys": [
+    {
+      "id": "j-requester",
+      "persona": "requester",
+      "story": "Requester sees drafts to finish, POs pending approval, and running spend; raises new POs against the catalog."
+    },
+    {
+      "id": "j-approving-manager",
+      "persona": "approving-manager",
+      "story": "Manager leads with POs awaiting approval, then team spend and top vendors."
+    },
+    {
+      "id": "j-finance",
+      "persona": "finance",
+      "story": "Finance sees approved-for-payment, budget vs spend, and overdue POs."
+    },
+    {
+      "id": "j-admin",
+      "persona": "admin",
+      "story": "Admin maintains vendor master and catalog and sees every PO and its status mix."
+    }
+  ],
+  "roles": [
+    {
+      "name": "Requester"
+    },
+    {
+      "name": "Approving Manager"
+    },
+    {
+      "name": "Finance"
+    },
+    {
+      "name": "Admin"
+    }
+  ],
+  "lists": [
+    {
+      "name": "Department",
+      "items": [
+        "Procurement",
+        "Finance",
+        "Operations",
+        "Engineering",
+        "Sales",
+        "Marketing",
+        "Human Resources",
+        "IT",
+        "Facilities",
+        "Legal"
+      ]
+    },
+    {
+      "name": "Order Currency",
+      "items": [
+        "USD",
+        "EUR",
+        "GBP",
+        "INR",
+        "JPY",
+        "AUD",
+        "CAD",
+        "SGD"
+      ]
+    },
+    {
+      "name": "UoM",
+      "items": [
+        "Each",
+        "Box",
+        "Case",
+        "Pack",
+        "Dozen",
+        "Kilogram",
+        "Litre",
+        "Metre",
+        "Hour",
+        "Day",
+        "Licence",
+        "Set",
+        "Pair"
+      ]
+    },
+    {
+      "name": "Item Category",
+      "items": [
+        "Office Supplies",
+        "IT Hardware",
+        "Software & Licences",
+        "Furniture",
+        "Raw Materials",
+        "Packaging",
+        "MRO / Spare Parts",
+        "Professional Services",
+        "Marketing & Print",
+        "Travel & Logistics",
+        "Safety & PPE"
+      ]
+    },
+    {
+      "name": "PO Status",
+      "items": [
+        "Draft",
+        "Submitted",
+        "Pending Manager Approval",
+        "Pending Finance Approval",
+        "Approved",
+        "Sent to Vendor",
+        "Partially Received",
+        "Received",
+        "Closed",
+        "Rejected",
+        "Cancelled",
+        "On Hold"
+      ]
+    },
+    {
+      "name": "PO Priority",
+      "items": [
+        "Low",
+        "Normal",
+        "High",
+        "Urgent"
+      ]
+    },
+    {
+      "name": "Payment Terms",
+      "items": [
+        "Net 15",
+        "Net 30",
+        "Net 45",
+        "Net 60",
+        "Net 90",
+        "Due on Receipt",
+        "Advance Payment",
+        "Letter of Credit"
+      ]
+    },
+    {
+      "name": "Vendor Status",
+      "items": [
+        "Prospective",
+        "Active",
+        "Preferred",
+        "On Hold",
+        "Blacklisted",
+        "Inactive"
+      ]
+    },
+    {
+      "name": "Shipping Method",
+      "items": [
+        "Standard Ground",
+        "Express",
+        "Air Freight",
+        "Sea Freight",
+        "Courier",
+        "Vendor Delivery",
+        "Customer Pickup"
+      ]
+    }
+  ],
+  "forms": [
+    {
+      "name": "Vendor",
+      "flowType": "Form",
+      "fields": [
+        {
+          "name": "Vendor Code",
+          "type": "SequenceNumber",
+          "section": "Vendor Identity",
+          "width": 3,
+          "required": true
+        },
+        {
+          "name": "Vendor Name",
+          "type": "Text",
+          "section": "Vendor Identity",
+          "width": 3,
+          "required": true
+        },
+        {
+          "name": "Legal Entity Name",
+          "type": "Text",
+          "section": "Vendor Identity",
+          "width": 3
+        },
+        {
+          "name": "Vendor Status",
+          "type": "Select",
+          "section": "Vendor Identity",
+          "width": 3,
+          "referredList": "Vendor Status",
+          "required": true
+        },
+        {
+          "name": "Tax Identification Number",
+          "type": "Text",
+          "section": "Vendor Identity",
+          "width": 3
+        },
+        {
+          "name": "Website",
+          "type": "Text",
+          "section": "Vendor Identity",
+          "width": 3
+        },
+        {
+          "name": "Vendor Description",
+          "type": "Textarea",
+          "section": "Vendor Identity",
+          "width": 6
+        },
+        {
+          "name": "Primary Contact Name",
+          "type": "Text",
+          "section": "Contact Details",
+          "width": 3
+        },
+        {
+          "name": "Contact Email",
+          "type": "Email",
+          "section": "Contact Details",
+          "width": 3,
+          "required": true
+        },
+        {
+          "name": "Contact Phone",
+          "type": "Text",
+          "section": "Contact Details",
+          "width": 3
+        },
+        {
+          "name": "Account Manager",
+          "type": "User",
+          "section": "Contact Details",
+          "width": 3
+        },
+        {
+          "name": "Address Line 1",
+          "type": "Text",
+          "section": "Address",
+          "width": 3
+        },
+        {
+          "name": "Address Line 2",
+          "type": "Text",
+          "section": "Address",
+          "width": 3
+        },
+        {
+          "name": "City",
+          "type": "Text",
+          "section": "Address",
+          "width": 2
+        },
+        {
+          "name": "State / Province",
+          "type": "Text",
+          "section": "Address",
+          "width": 2
+        },
+        {
+          "name": "Postal Code",
+          "type": "Text",
+          "section": "Address",
+          "width": 2
+        },
+        {
+          "name": "Country",
+          "type": "Text",
+          "section": "Address",
+          "width": 3
+        },
+        {
+          "name": "Default Currency",
+          "type": "Select",
+          "section": "Commercial Terms",
+          "width": 3,
+          "referredList": "Order Currency"
+        },
+        {
+          "name": "Default Payment Terms",
+          "type": "Select",
+          "section": "Commercial Terms",
+          "width": 3,
+          "referredList": "Payment Terms"
+        },
+        {
+          "name": "Bank Account Number",
+          "type": "Text",
+          "section": "Commercial Terms",
+          "width": 3
+        },
+        {
+          "name": "Lead Time Days",
+          "type": "Number",
+          "section": "Commercial Terms",
+          "width": 3
+        },
+        {
+          "name": "Vendor Rating",
+          "type": "Number",
+          "section": "Commercial Terms",
+          "width": 3
+        },
+        {
+          "name": "Onboarding Date",
+          "type": "Date",
+          "section": "Commercial Terms",
+          "width": 3
+        },
+        {
+          "name": "Active",
+          "type": "Boolean",
+          "section": "Commercial Terms",
+          "width": 3
+        }
+      ]
+    },
+    {
+      "name": "Item Catalog",
+      "flowType": "Form",
+      "fields": [
+        {
+          "name": "Item Code",
+          "type": "SequenceNumber",
+          "section": "Item Identity",
+          "width": 3,
+          "required": true
+        },
+        {
+          "name": "Item Name",
+          "type": "Text",
+          "section": "Item Identity",
+          "width": 3,
+          "required": true
+        },
+        {
+          "name": "Item Category",
+          "type": "Select",
+          "section": "Item Identity",
+          "width": 3,
+          "referredList": "Item Category",
+          "required": true
+        },
+        {
+          "name": "Manufacturer Part Number",
+          "type": "Text",
+          "section": "Item Identity",
+          "width": 3
+        },
+        {
+          "name": "Item Description",
+          "type": "Textarea",
+          "section": "Item Identity",
+          "width": 6
+        },
+        {
+          "name": "Preferred Vendor",
+          "type": "Reference",
+          "section": "Sourcing",
+          "width": 3,
+          "ref": "Vendor",
+          "lookup": [
+            {
+              "name": "Vendor Name",
+              "type": "Text"
+            },
+            {
+              "name": "Contact Email",
+              "type": "Email"
+            }
+          ]
+        },
+        {
+          "name": "Unit of Measure",
+          "type": "Select",
+          "section": "Sourcing",
+          "width": 3,
+          "referredList": "UoM",
+          "required": true
+        },
+        {
+          "name": "Standard Unit Cost",
+          "type": "Currency",
+          "section": "Sourcing",
+          "width": 3
+        },
+        {
+          "name": "Cost Currency",
+          "type": "Select",
+          "section": "Sourcing",
+          "width": 3,
+          "referredList": "Order Currency"
+        },
+        {
+          "name": "Lead Time Days",
+          "type": "Number",
+          "section": "Sourcing",
+          "width": 3
+        },
+        {
+          "name": "Minimum Order Quantity",
+          "type": "Number",
+          "section": "Sourcing",
+          "width": 3
+        },
+        {
+          "name": "Reorder Level",
+          "type": "Number",
+          "section": "Inventory",
+          "width": 3
+        },
+        {
+          "name": "Current Stock",
+          "type": "Number",
+          "section": "Inventory",
+          "width": 3
+        },
+        {
+          "name": "Hazardous Material",
+          "type": "Boolean",
+          "section": "Inventory",
+          "width": 3
+        },
+        {
+          "name": "Item Image",
+          "type": "Attachment",
+          "section": "Inventory",
+          "width": 6
+        }
+      ]
+    },
+    {
+      "name": "Purchase Order",
+      "flowType": "Process",
+      "fields": [
+        {
+          "name": "PO Number",
+          "type": "SequenceNumber",
+          "section": "Order Summary",
+          "width": 3,
+          "required": true
+        },
+        {
+          "name": "PO Title",
+          "type": "Text",
+          "section": "Order Summary",
+          "width": 3,
+          "required": true
+        },
+        {
+          "name": "PO Status",
+          "type": "Select",
+          "section": "Order Summary",
+          "width": 3,
+          "referredList": "PO Status",
+          "required": true
+        },
+        {
+          "name": "Priority",
+          "type": "Select",
+          "section": "Order Summary",
+          "width": 3,
+          "referredList": "PO Priority",
+          "required": true
+        },
+        {
+          "name": "Order Date",
+          "type": "Date",
+          "section": "Order Summary",
+          "width": 3,
+          "required": true
+        },
+        {
+          "name": "Required By Date",
+          "type": "Date",
+          "section": "Order Summary",
+          "width": 3
+        },
+        {
+          "name": "Purpose / Justification",
+          "type": "Textarea",
+          "section": "Order Summary",
+          "width": 6
+        },
+        {
+          "name": "Requester",
+          "type": "User",
+          "section": "Requisition",
+          "width": 3,
+          "required": true
+        },
+        {
+          "name": "Department",
+          "type": "Select",
+          "section": "Requisition",
+          "width": 3,
+          "referredList": "Department",
+          "required": true
+        },
+        {
+          "name": "Approving Manager",
+          "type": "User",
+          "section": "Requisition",
+          "width": 3
+        },
+        {
+          "name": "Cost Center",
+          "type": "Text",
+          "section": "Requisition",
+          "width": 3
+        },
+        {
+          "name": "Project Code",
+          "type": "Text",
+          "section": "Requisition",
+          "width": 3
+        },
+        {
+          "name": "Vendor",
+          "type": "Reference",
+          "section": "Vendor & Terms",
+          "width": 3,
+          "required": true,
+          "ref": "Vendor",
+          "lookup": [
+            {
+              "name": "Vendor Name",
+              "type": "Text"
+            },
+            {
+              "name": "Contact Email",
+              "type": "Email"
+            }
+          ]
+        },
+        {
+          "name": "Vendor Contact Email",
+          "type": "Email",
+          "section": "Vendor & Terms",
+          "width": 3
+        },
+        {
+          "name": "Currency",
+          "type": "Select",
+          "section": "Vendor & Terms",
+          "width": 3,
+          "referredList": "Order Currency",
+          "required": true
+        },
+        {
+          "name": "Payment Terms",
+          "type": "Select",
+          "section": "Vendor & Terms",
+          "width": 3,
+          "referredList": "Payment Terms"
+        },
+        {
+          "name": "Shipping Method",
+          "type": "Select",
+          "section": "Vendor & Terms",
+          "width": 3,
+          "referredList": "Shipping Method"
+        },
+        {
+          "name": "Quote Reference",
+          "type": "Text",
+          "section": "Vendor & Terms",
+          "width": 3
+        },
+        {
+          "name": "Ship To Location",
+          "type": "Text",
+          "section": "Shipping & Delivery",
+          "width": 3
+        },
+        {
+          "name": "Delivery Address",
+          "type": "Textarea",
+          "section": "Shipping & Delivery",
+          "width": 6
+        },
+        {
+          "name": "Delivery Instructions",
+          "type": "Textarea",
+          "section": "Shipping & Delivery",
+          "width": 6
+        },
+        {
+          "name": "Subtotal",
+          "type": "Currency",
+          "section": "Financials",
+          "width": 3
+        },
+        {
+          "name": "Tax Amount",
+          "type": "Currency",
+          "section": "Financials",
+          "width": 3
+        },
+        {
+          "name": "Shipping Charges",
+          "type": "Currency",
+          "section": "Financials",
+          "width": 3
+        },
+        {
+          "name": "Discount Amount",
+          "type": "Currency",
+          "section": "Financials",
+          "width": 3
+        },
+        {
+          "name": "Grand Total",
+          "type": "Currency",
+          "section": "Financials",
+          "width": 3,
+          "formula": "Subtotal + Tax_Amount"
+        },
+        {
+          "name": "Budget Approved",
+          "type": "Boolean",
+          "section": "Financials",
+          "width": 3
+        },
+        {
+          "name": "Manager Approved",
+          "type": "Boolean",
+          "section": "Approval & Audit",
+          "width": 3
+        },
+        {
+          "name": "Finance Approved",
+          "type": "Boolean",
+          "section": "Approval & Audit",
+          "width": 3
+        },
+        {
+          "name": "Approval Date",
+          "type": "DateTime",
+          "section": "Approval & Audit",
+          "width": 3
+        },
+        {
+          "name": "Reviewed By",
+          "type": "User",
+          "section": "Approval & Audit",
+          "width": 3
+        },
+        {
+          "name": "Approval Notes",
+          "type": "Textarea",
+          "section": "Approval & Audit",
+          "width": 6
+        },
+        {
+          "name": "Supporting Documents",
+          "type": "Attachment",
+          "section": "Approval & Audit",
+          "width": 6
+        }
+      ]
+    },
+    {
+      "name": "PO Line Item",
+      "flowType": "Form",
+      "fields": [
+        {
+          "name": "Line Number",
+          "type": "Number"
+        },
+        {
+          "name": "Catalog Item",
+          "type": "Reference",
+          "ref": "Item Catalog",
+          "lookup": [
+            {
+              "name": "Item Name",
+              "type": "Text"
+            },
+            {
+              "name": "Standard Unit Cost",
+              "type": "Number"
+            }
+          ]
+        },
+        {
+          "name": "Item Description",
+          "type": "Text"
+        },
+        {
+          "name": "Item Category",
+          "type": "Select",
+          "referredList": "Item Category"
+        },
+        {
+          "name": "Quantity",
+          "type": "Number",
+          "required": true
+        },
+        {
+          "name": "Unit of Measure",
+          "type": "Select",
+          "referredList": "UoM"
+        },
+        {
+          "name": "Unit Price",
+          "type": "Currency",
+          "required": true
+        },
+        {
+          "name": "Line Total",
+          "type": "Currency",
+          "formula": "Quantity * Unit_Price"
+        },
+        {
+          "name": "Tax Rate Percent",
+          "type": "Number"
+        },
+        {
+          "name": "Need By Date",
+          "type": "Date"
+        },
+        {
+          "name": "Line Notes",
+          "type": "Text"
+        }
+      ]
+    }
+  ],
+  "childTables": [
+    {
+      "parent": "Purchase Order",
+      "child": "PO Line Item",
+      "field": "Line Items"
+    }
+  ],
+  "workflow": {
+    "flow": "Purchase Order",
+    "steps": [
+      {
+        "name": "Submit PO",
+        "actor": "Requester"
+      },
+      {
+        "name": "Manager Approval",
+        "actor": "Approving Manager",
+        "decision": [
+          "Approve",
+          "Reject"
+        ]
+      },
+      {
+        "name": "Finance Processing",
+        "actor": "Finance"
+      },
+      {
+        "name": "PO Issued & Closed",
+        "actor": "Finance"
+      }
+    ]
+  },
+  "permissions": [
+    {
+      "role": "Requester",
+      "model": "Purchase Order",
+      "level": "Editable",
+      "scope": "my-items"
+    },
+    {
+      "role": "Approving Manager",
+      "model": "Purchase Order",
+      "level": "Editable",
+      "scope": "my-team"
+    },
+    {
+      "role": "Finance",
+      "model": "Purchase Order",
+      "level": "Editable",
+      "scope": "all"
+    },
+    {
+      "role": "Admin",
+      "model": "Purchase Order",
+      "level": "ReadOnly",
+      "scope": "all"
+    },
+    {
+      "role": "Admin",
+      "model": "Vendor",
+      "level": "Editable",
+      "scope": "all"
+    },
+    {
+      "role": "Admin",
+      "model": "Item Catalog",
+      "level": "Editable",
+      "scope": "all"
+    }
+  ],
+  "pages": [
+    {
+      "name": "My Procurement",
+      "role": "Requester",
+      "cards": [
+        {
+          "label": "My Draft POs",
+          "source_flow": "Purchase Order",
+          "view": "kpi",
+          "scope": "my-items",
+          "metric": "count",
+          "filter": {
+            "status": "Draft"
+          }
+        },
+        {
+          "label": "My POs Pending Approval",
+          "source_flow": "Purchase Order",
+          "view": "list",
+          "scope": "my-items",
+          "metric": "count",
+          "filter": {
+            "status": "Pending Manager Approval"
+          }
+        },
+        {
+          "label": "My Total Spend",
+          "source_flow": "Purchase Order",
+          "view": "kpi",
+          "scope": "my-items",
+          "metric": "sum:Grand Total",
+          "filter": {
+            "status": [
+              "Approved",
+              "Closed"
+            ]
+          }
+        },
+        {
+          "label": "My Recent POs",
+          "source_flow": "Purchase Order",
+          "view": "list",
+          "scope": "my-items",
+          "metric": "count",
+          "filter": {}
+        }
+      ]
+    },
+    {
+      "name": "Approvals",
+      "role": "Approving Manager",
+      "cards": [
+        {
+          "label": "Awaiting My Approval",
+          "source_flow": "Purchase Order",
+          "view": "list",
+          "scope": "my-team",
+          "metric": "count",
+          "filter": {
+            "status": "Pending Manager Approval"
+          }
+        },
+        {
+          "label": "Team Spend This Period",
+          "source_flow": "Purchase Order",
+          "view": "kpi",
+          "scope": "my-team",
+          "metric": "sum:Grand Total",
+          "filter": {
+            "status": [
+              "Approved",
+              "Closed"
+            ]
+          }
+        },
+        {
+          "label": "Top Vendors by Team Spend",
+          "source_flow": "Purchase Order",
+          "view": "chart",
+          "scope": "my-team",
+          "metric": "sum:Grand Total",
+          "filter": {
+            "groupBy": "Vendor"
+          }
+        },
+        {
+          "label": "Team Spend by Department",
+          "source_flow": "Purchase Order",
+          "view": "chart",
+          "scope": "my-team",
+          "metric": "sum:Grand Total",
+          "filter": {
+            "groupBy": "Department"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Finance Console",
+      "role": "Finance",
+      "cards": [
+        {
+          "label": "Approved for Payment",
+          "source_flow": "Purchase Order",
+          "view": "list",
+          "scope": "all",
+          "metric": "count",
+          "filter": {
+            "status": "Approved"
+          }
+        },
+        {
+          "label": "Total Approved Spend",
+          "source_flow": "Purchase Order",
+          "view": "kpi",
+          "scope": "all",
+          "metric": "sum:Grand Total",
+          "filter": {
+            "status": [
+              "Approved",
+              "Sent to Vendor"
+            ]
+          }
+        },
+        {
+          "label": "Budget vs Spend by Department",
+          "source_flow": "Purchase Order",
+          "view": "chart",
+          "scope": "all",
+          "metric": "sum:Grand Total",
+          "filter": {
+            "groupBy": "Department"
+          }
+        },
+        {
+          "label": "Overdue POs",
+          "source_flow": "Purchase Order",
+          "view": "list",
+          "scope": "all",
+          "metric": "count",
+          "filter": {
+            "status": "Approved"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin Console",
+      "role": "Admin",
+      "cards": [
+        {
+          "label": "Active Vendors",
+          "source_flow": "Vendor",
+          "view": "kpi",
+          "scope": "all",
+          "metric": "count",
+          "filter": {
+            "status": "Active"
+          }
+        },
+        {
+          "label": "Item Catalog Size",
+          "source_flow": "Item Catalog",
+          "view": "kpi",
+          "scope": "all",
+          "metric": "count",
+          "filter": {}
+        },
+        {
+          "label": "All POs by Status",
+          "source_flow": "Purchase Order",
+          "view": "chart",
+          "scope": "all",
+          "metric": "count",
+          "filter": {
+            "groupBy": "Status"
+          }
+        },
+        {
+          "label": "All POs",
+          "source_flow": "Purchase Order",
+          "view": "list",
+          "scope": "all",
+          "metric": "count",
+          "filter": {}
+        }
+      ]
+    }
+  ],
+  "nav": [
+    {
+      "label": "My Procurement",
+      "page": "My Procurement",
+      "role": "Requester"
+    },
+    {
+      "label": "Approvals",
+      "page": "Approvals",
+      "role": "Approving Manager"
+    },
+    {
+      "label": "Finance Console",
+      "page": "Finance Console",
+      "role": "Finance"
+    },
+    {
+      "label": "Admin Console",
+      "page": "Admin Console",
+      "role": "Admin"
+    }
+  ]
+}

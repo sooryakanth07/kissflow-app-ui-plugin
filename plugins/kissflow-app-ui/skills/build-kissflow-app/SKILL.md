@@ -19,10 +19,10 @@ scaffold; it's only used later for data sync — see step 4.)
 From the directory where the project should live, run:
 
 ```bash
-npx -y @sooryakanth/create-kf-app --target app --name <project-name> --yes
+npx -y @abdul-kissflow/create-kf-app --target app --name <project-name> --yes
 ```
 
-This creates `./<project-name>/` — a Vite + React app on `@sooryakanth/app-ui` with
+This creates `./<project-name>/` — a Vite + React app on `@abdul-kissflow/app-ui` with
 folder-based routing, a layout, the SDK wired up, and the agent docs.
 
 ## 3. Install + onboard yourself

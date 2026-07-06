@@ -1,5 +1,5 @@
 ---
-name: kf-qa
+name: kf-ui-qa
 description: Validates the generated pages against the schema and the app — build, real ids, role-gating, no hardcoded data, wired actions. Use as the FINAL stage of /add-page.
 tools: Read, Bash, Grep, Glob
 ---
@@ -30,7 +30,7 @@ has grown redundant/contradictory, note it so the orchestrator consolidates it.
    nav entry carries the page's `models`.
 6. **Actions wired**: tables/kanban open `openForm` (or a detail Dialog) on click; create
    paths use a primary Button that opens the create form.
-7. **Spec coverage**: every page in `lib/app-spec.json` has a corresponding file; every
+7. **Spec coverage**: every page in `lib/ui-spec.json` has a corresponding file; every
    widget in a page is represented.
 
 ## Report
