@@ -15,12 +15,25 @@ function groupByField(ir, model) {
   return fld?.name;
 }
 
+// resolve a permission's model — specs reference flows by ID or NAME interchangeably; matching raw
+// against f.name produced a DEGENERATE baseline for id-based specs (zero worklists = create lockout,
+// mis-sourced KPI cards → auto-grant escalation; p2p VER-B1 2026-07-03). Canonicalize to the form's
+// display name once, here, so every downstream consumer (isProcess/groupByField/source_flow) agrees.
+function modelResolver(ir) {
+  const norm = (s) => String(s ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+  const byKey = new Map();
+  for (const f of (ir.forms || [])) { if (f.id) byKey.set(norm(f.id), f.name); byKey.set(norm(f.name), f.name); }
+  return (m) => byKey.get(norm(m)) || m;
+}
+
 // role → accessible models, and the subset the role can edit/initiate (from the permission matrix)
 function accessMaps(ir) {
+  const resolve = modelResolver(ir);
   const acc = {}, edit = {};
   for (const p of (ir.permissions || [])) {
-    (acc[p.role] = acc[p.role] || []).push(p.model);
-    if (/edit|manage|initi/i.test(p.level || "")) (edit[p.role] = edit[p.role] || new Set()).add(p.model);
+    const model = resolve(p.model);
+    (acc[p.role] = acc[p.role] || []).push(model);
+    if (/edit|manage|initi/i.test(p.level || "")) (edit[p.role] = edit[p.role] || new Set()).add(model);
   }
   return { acc, edit };
 }

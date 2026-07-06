@@ -127,6 +127,10 @@ const fieldCard = (entity, f) => {
 };
 
 // ── ER data-model diagram: Mermaid erDiagram primary + hand-drawn SVG graph as offline fallback ──
+// Layered-then-packed ER layout: entities sorted by DEPENDENCY DEPTH (masters → referrers →
+// processes), children docked right after their parent, then packed COLUMN-MAJOR into balanced
+// columns — organized flow without the absurd width a strict layer-per-column would need on deep
+// chains. Cards show up to 6 key fields (first = PK, refs = FK) so the diagram reads as a model.
 function buildGraph() {
   const refE = [], childE = [];
   for (const f of forms) {
@@ -135,36 +139,175 @@ function buildGraph() {
   }
   const connected = new Set();
   for (const [a, b] of [...refE, ...childE]) { connected.add(a); connected.add(b); }
-  const byParent = {};
-  for (const f of forms) { const par = formName(f.childOf); if (par) (byParent[par] = byParent[par] || []).push(f.name); }
-  const order = [], seen = new Set();
-  for (const f of forms) {
-    if (!connected.has(f.name) || seen.has(f.name)) continue;
-    const par = formName(f.childOf); if (par && connected.has(par)) continue;
-    order.push(f.name); seen.add(f.name);
-    for (const k of (byParent[f.name] || [])) if (connected.has(k) && !seen.has(k)) { order.push(k); seen.add(k); }
-  }
-  for (const f of forms) if (connected.has(f.name) && !seen.has(f.name)) { order.push(f.name); seen.add(f.name); }
-  const N = order.length;
+  const N = connected.size;
   if (!N) return { svg: `<p class="empty">No relationships between entities to diagram.</p>`, W: 0, H: 0, N: 0, standalone: 0 };
-  const idx = {}; order.forEach((n, i) => (idx[n] = i));
-  const cols = Math.max(1, Math.ceil(Math.sqrt(N)));
-  const BW = 176, BH = 52, GX = 56, GY = 48, PAD = 30;
-  const pos = order.map((n, i) => ({ n, x: PAD + (i % cols) * (BW + GX), y: PAD + Math.floor(i / cols) * (BH + GY) }));
-  const rows = Math.ceil(N / cols);
-  const W = PAD * 2 + cols * (BW + GX) - GX, H = PAD * 2 + rows * (BH + GY) - GY;
-  const center = (i) => ({ x: pos[i].x + BW / 2, y: pos[i].y + BH / 2 });
+  const parentOf = {}; for (const [p, c] of childE) parentOf[c] = p;
+  const targets = {}; for (const [a, b] of refE) (targets[a] = targets[a] || new Set()).add(b);
+  const memo = {};
+  const rankOf = (n, stack = new Set()) => {
+    if (memo[n] != null) return memo[n];
+    if (stack.has(n)) return 0;
+    stack.add(n);
+    let r;
+    const p = parentOf[n];
+    if (p && connected.has(p)) r = rankOf(p, stack);
+    else { const ts = [...(targets[n] || [])].filter((t) => connected.has(t) && t !== n); r = ts.length ? 1 + Math.max(...ts.map((t) => rankOf(t, stack))) : 0; }
+    stack.delete(n); memo[n] = r; return r;
+  };
+  const names = forms.map((f) => f.name).filter((n) => connected.has(n) && !parentOf[n]);
+  [...connected].forEach((n) => rankOf(n));
+  // topo order: dependency depth, ties broken by first ref target (clusters related entities)
+  names.sort((a, b) => memo[a] - memo[b] || String([...(targets[a] || [])][0] || "").localeCompare(String([...(targets[b] || [])][0] || "")) || a.localeCompare(b));
+  const order = [];
+  for (const n of names) { order.push(n); for (const [p, c] of childE) if (p === n && connected.has(c)) order.push(c); }
+  for (const n of [...connected]) if (!order.includes(n)) order.push(n);
+  // node cards
+  const CW = 216, HH = 30, RH = 19, PAD = 26, GX = 62, GY = 24;
+  const geo = {};
+  for (const n of order) {
+    const f = forms.find((z) => z.name === n); const fl = (f && f.fields) || [];
+    const refs = fl.filter((x) => x.ref), rest = fl.filter((x) => !x.ref && x !== fl[0]);
+    const pick = [...new Set([...(fl[0] ? [fl[0]] : []), ...refs, ...rest])].slice(0, 6);
+    const more = fl.length - pick.length;
+    geo[n] = { w: CW, h: HH + pick.length * RH + (more > 0 ? RH : 0), rows: pick, more };
+  }
+  // DOMAIN PANELS — group by the IR's `section` (children ride with their parent), order panels by
+  // avg dependency rank (= the business lifecycle), pack each panel's cards into small columns, and
+  // flow panels left→right with row wrapping. The panel layer is what keeps the map from reading flat.
+  // connection degree — drives hub rails AND the layout anchor (most-connected model centers the map)
+  const deg = {};
+  for (const [a, b] of refE) { deg[a] = (deg[a] || 0) + 1; deg[b] = (deg[b] || 0) + 1; }
+  const isHub = (n) => (deg[n] || 0) >= 8;
+  const HUBC = ["#7c3aed", "#0e9f6e", "#d97706", "#db2777", "#0284c7", "#dc2626"];
+  const hubs = [...connected].filter(isHub).sort((a, b) => deg[b] - deg[a]).slice(0, 6);
+  const hubColor = {}; hubs.forEach((h, i) => (hubColor[h] = HUBC[i % HUBC.length]));
+  const prime = [...connected].sort((a, b) => (deg[b] || 0) - (deg[a] || 0))[0] || null;
+  // when the IR has no sections, DERIVE groups: name families first ("Fund Report - X" → "Fund
+  // Report", ≥3 sharing a first word → that word), then singletons join their first ref target's
+  // family — so legacy/sectionless IRs still get a structured map instead of one "Other" panel.
+  const hasSections = forms.some((f) => !f.childOf && f.section);
+  let derived = null;
+  if (!hasSections) {
+    derived = {};
+    const famKey = (n) => String(n).split(" - ")[0].trim();
+    const w1 = (n) => String(n).split(/\s+/)[0];
+    const famC = {}, w1C = {};
+    for (const n of names) { famC[famKey(n)] = (famC[famKey(n)] || 0) + 1; w1C[w1(n)] = (w1C[w1(n)] || 0) + 1; }
+    for (const n of names) derived[n] = famC[famKey(n)] >= 2 ? famKey(n) : (w1C[w1(n)] >= 3 ? w1(n) : null);
+    for (const n of names) if (!derived[n]) { const t = [...(targets[n] || [])].find((x) => derived[x]); derived[n] = (t && derived[t]) || famKey(n); }
+  }
+  const secOf = (n) => {
+    const f = forms.find((z) => z.name === n); if (!f) return "Other";
+    if (f.childOf) { const p = formName(f.childOf); const pf = forms.find((z) => z.name === p); return (derived ? derived[p] : (pf && pf.section)) || f.section || "Other"; }
+    return (derived ? derived[n] : f.section) || "Other";
+  };
+  const groups = {};
+  for (const n of order) (groups[secOf(n)] = groups[secOf(n)] || []).push(n);
+  const primeKey = "__prime__";
+  if (prime && groups[secOf(prime)] && (deg[prime] || 0) >= 6) {
+    for (const k of Object.keys(groups)) { groups[k] = groups[k].filter((n) => n !== prime && parentOf[n] !== prime); if (!groups[k].length) delete groups[k]; }
+    groups[primeKey] = [prime, ...order.filter((n) => parentOf[n] === prime)];
+  }
+  const gnames = Object.keys(groups).sort((a, b) => {
+    const avg = (g) => groups[g].reduce((s, n) => s + (memo[n] || 0), 0) / groups[g].length;
+    return avg(a) - avg(b);
+  });
+  const GP = 18, GH = 34, GXi = 26, GYi = 18, PGX = 36, PGY = 36;
+  const panels = gnames.map((g) => {
+    const mem = groups[g];
+    // column count scales with group size, so an IR WITHOUT sections (one big group) still packs
+    // into a sensible grid instead of a uselessly tall single panel
+    const gcols = mem.length <= 2 ? 1 : mem.length <= 5 ? 2 : mem.length <= 9 ? 3 : Math.min(5, Math.ceil(Math.sqrt(mem.length * 1.7)));
+    const tot = mem.reduce((s, n) => s + geo[n].h + GYi, 0);
+    const tgt = tot / gcols;
+    let c = 0, y = 0; const colH = [];
+    for (const n of mem) {
+      if (y > 0 && y + geo[n].h > tgt && c < gcols - 1) { colH[c] = y; c++; y = 0; }
+      geo[n].gx = c; geo[n].gy = y; y += geo[n].h + GYi;
+    }
+    colH[c] = y;
+    const usedC = c + 1;
+    return { g, label: g === primeKey ? String(prime) : String(g), mem, usedC, w: GP * 2 + usedC * CW + (usedC - 1) * GXi, h: GH + GP * 2 + Math.max(...colH) - GYi };
+  });
+  // HUB-CENTERED RADIAL BANDS — the most-connected model sits in its own emphasized panel at the
+  // CENTER; family columns are placed around it by CONNECTION STRENGTH, alternating right/left, so
+  // the most fund-coupled families hug the hub and the map reads naturally outward from the middle.
+  const pr = (p) => p.mem.reduce((sum, n) => sum + (memo[n] || 0), 0) / p.mem.length;
+  const primePanel = panels.find((p) => p.g === primeKey) || null;
+  const connScore = (p) => p.mem.reduce((s2, n) => s2 + refE.reduce((s3, [a, b]) => s3 + ((a === prime && b === n) || (b === prime && a === n) ? 1 : 0), 0), 0);
+  const others = panels.filter((p) => p !== primePanel).sort((a, b) => connScore(b) - connScore(a) || pr(a) - pr(b));
+  const targetH = Math.max(900, ...panels.map((p) => p.h));
+  const colsAll = []; { let cur = [], h = 0;
+    for (const p of others) { if (h > 0 && h + p.h > targetH) { colsAll.push(cur); cur = []; h = 0; } cur.push(p); h += p.h + PGY; }
+    if (cur.length) colsAll.push(cur); }
+  const rightC = [], leftC = [];
+  colsAll.forEach((c2, i2) => (i2 % 2 ? leftC : rightC).push(c2));
+  const seq = [...leftC.reverse(), ...(primePanel ? [[primePanel]] : []), ...rightC];
+  let bx = PAD;
+  for (const colP of seq) {
+    const w = Math.max(...colP.map((p) => p.w)); let yy = 0;
+    for (const p of colP) { p.x = bx; p.y = yy; yy += p.h + PGY; }
+    colP._h = yy - PGY; bx += w + PGX;
+  }
+  const H0 = Math.max(...seq.map((c2) => c2._h));
+  for (const colP of seq) { const off = PAD + (H0 - colP._h) / 2; for (const p of colP) p.y += off; }
+  const W = bx - PGX + PAD, H = H0 + PAD * 2;
+  for (const p of panels) for (const n of p.mem) { geo[n].x = p.x + GP + geo[n].gx * (CW + GXi); geo[n].y = p.y + GH + GP + geo[n].gy; }
+  const panelSvg = panels.map((p) => `<g class="grp"><rect class="gp${p.g === primeKey ? " gpp" : ""}" x="${p.x}" y="${p.y}" width="${p.w}" height="${p.h}" rx="16"/><text class="gl${p.g === primeKey ? " glp" : ""}" x="${p.x + GP}" y="${p.y + GH / 2 + 4}">${esc(String(p.label).toUpperCase())}</text><text class="gc" x="${p.x + p.w - GP}" y="${p.y + GH / 2 + 4}">${p.mem.length}</text></g>`).join("");
   const cls = (n) => { const f = forms.find((z) => z.name === n); const t = f?.flowType || "Form"; return f?.childOf ? "child" : t === "Process" ? "proc" : t === "List" ? "list" : "form"; };
+  const anchor = (g) => ({ l: { x: g.x, y: g.y + HH / 2 + 4 }, r: { x: g.x + CW, y: g.y + HH / 2 + 4 } });
   const edgeSvg = [...childE.map((e) => ({ e, k: "child" })), ...refE.map((e) => ({ e, k: "ref" }))].map(({ e, k }) => {
-    const a = idx[e[0]], b = idx[e[1]]; if (a == null || b == null) return "";
-    const ca = center(a), cb = center(b), mx = (ca.x + cb.x) / 2, my = (ca.y + cb.y) / 2 - 20;
-    return `<path class="edge ${k}" data-a="${esc(slug(e[0]))}" data-b="${esc(slug(e[1]))}" d="M${ca.x} ${ca.y} Q ${mx} ${my} ${cb.x} ${cb.y}"/>`;
+    const A = geo[e[0]], B = geo[e[1]]; if (!A || !B) return "";
+    let d;
+    if (k === "child" && A.x === B.x && B.y > A.y && B.y - (A.y + A.h) < 20) {
+      d = `M${A.x + CW / 2} ${A.y + A.h} C ${A.x + CW / 2 - 16} ${A.y + A.h + 8}, ${B.x + CW / 2 - 16} ${B.y - 8}, ${B.x + CW / 2} ${B.y}`; // docked child: gentle bow
+    } else {
+      const aA = anchor(A), aB = anchor(B);
+      let p1, p2;
+      if (A.x + CW < B.x) { p1 = aA.r; p2 = aB.l; } else if (B.x + CW < A.x) { p1 = aA.l; p2 = aB.r; } else { p1 = aA.l; p2 = aB.l; }
+      const bend = p1.x === aA.l.x && p2.x === aB.l.x ? -36 : Math.max(28, Math.abs(p2.x - p1.x) / 2.6) * (p2.x >= p1.x ? 1 : -1);
+      d = `M${p1.x} ${p1.y} C ${p1.x + bend} ${p1.y}, ${p2.x - bend} ${p2.y}, ${p2.x} ${p2.y}`;
+    }
+    if (k === "ref" && (isHub(e[0]) || isHub(e[1]))) return ""; // hubs connect via RAILS below
+    return `<path class="edge ${k}" data-a="${esc(slug(e[0]))}" data-b="${esc(slug(e[1]))}" d="${d}"/>`;
   }).join("");
-  const nodeSvg = pos.map((p) => {
-    const s = slug(p.n), lbl = p.n.length > 24 ? p.n.slice(0, 22) + "…" : p.n;
-    return `<a class="node ${cls(p.n)}" href="#e-${esc(s)}" data-id="${esc(s)}"><g transform="translate(${p.x} ${p.y})"><rect width="${BW}" height="${BH}" rx="11"/><text x="${BW / 2}" y="${BH / 2}">${esc(lbl)}</text></g></a>`;
+  // HUB RAILS — since the canvas may scroll, hub connectivity is drawn ALWAYS-VISIBLE as a bus:
+  // one colored trunk through the hub's header line, vertical drops in each used column gutter,
+  // and a stub tapping every connected card. Lines pass behind cards; color = which hub.
+  const railSvg = hubs.map((h, hi) => {
+    const cHex = hubColor[h], Hg = geo[h]; if (!Hg) return "";
+    const hy = Hg.y + HH / 2 + hi * 4;
+    const nbs = new Set();
+    for (const [a, b] of refE) { if (a === h && geo[b]) nbs.add(b); else if (b === h && geo[a]) nbs.add(a); }
+    if (!nbs.size) return "";
+    const lane = 14 + hi * 6;
+    // one smooth cubic per connection, both control points pinned to the neighbor's gutter x —
+    // curves from the same column share the gutter, so they BUNDLE organically (no straight lines)
+    return [...nbs].map((n) => {
+      const g = geo[n], ny = g.y + HH / 2;
+      const toRight = g.x >= Hg.x + CW, toLeft = g.x + CW <= Hg.x;
+      const sx = toRight ? Hg.x + CW : (toLeft ? Hg.x : Hg.x + CW / 2);
+      const ex = toRight ? g.x : (toLeft ? g.x + CW : g.x + CW / 2);
+      const gx = toRight ? g.x - lane : (toLeft ? g.x + CW + lane : g.x - lane);
+      return `<path class="edge rail" data-a="${esc(slug(h))}" data-b="${esc(slug(n))}" style="stroke:${cHex}" d="M${sx} ${hy} C ${gx} ${hy}, ${gx} ${ny}, ${ex} ${ny}"/>`;
+    }).join("");
   }).join("");
-  return { svg: `<svg id="ersvg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg"><g id="zoomable">${edgeSvg}${nodeSvg}</g></svg>`, W, H, N, standalone: forms.length - N };
+  const nodeSvg = order.map((n) => {
+    const g = geo[n], s = slug(n);
+    const lbl = n.length > 26 ? n.slice(0, 24) + "…" : n;
+    const rows = g.rows.map((x, i) => {
+      const ry = HH + i * RH;
+      const nm = String(x.name || "").length > 22 ? String(x.name).slice(0, 21) + "…" : (x.name || "");
+      const tag = i === 0 ? "PK" : x.ref ? "FK" : "";
+      return `<line class="rl" x1="0" y1="${ry}" x2="${CW}" y2="${ry}"/><text class="rt" x="9" y="${ry + RH / 2 + 1}">${esc(nm)}</text>${tag ? `<text class="rk" x="${CW - 9}" y="${ry + RH / 2 + 1}">${tag}</text>` : ""}`;
+    }).join("");
+    const moreY = HH + g.rows.length * RH;
+    const more = g.more > 0 ? `<line class="rl" x1="0" y1="${moreY}" x2="${CW}" y2="${moreY}"/><text class="rm" x="9" y="${moreY + RH / 2 + 1}">+ ${g.more} more field${g.more > 1 ? "s" : ""}</text>` : "";
+    const hubb = isHub(n) ? `<g class="hubb"><rect x="${CW - 50}" y="-9" width="50" height="18" rx="9" style="stroke:${hubColor[n] || "#94a3b8"}"/><text x="${CW - 25}" y="0.5" style="fill:${hubColor[n] || "#475569"}">⇄ ${deg[n]}</text></g>` : "";
+    const fic = (deg[n] || 0) > 0 ? `<g class="fic"><circle cx="${CW - 15}" cy="${HH / 2}" r="8.5"/><text x="${CW - 15}" y="${HH / 2 + 0.5}">⤢</text></g>` : "";
+    return `<a class="node ${cls(n)}" href="#e-${esc(s)}" data-id="${esc(s)}"><g transform="translate(${g.x} ${g.y})"><rect class="bd" width="${CW}" height="${g.h}" rx="10"/><rect class="hd" width="${CW}" height="${HH}" rx="10"/><rect class="hd2" y="${HH - 10}" width="${CW}" height="10"/><text class="tt" x="${CW / 2}" y="${HH / 2 + 1}">${esc(lbl)}</text>${rows}${more}${hubb}${fic}</g></a>`;
+  }).join("");
+  return { svg: `<svg id="ersvg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg"><g id="zoomable">${panelSvg}${railSvg}${edgeSvg}${nodeSvg}</g></svg>`, W, H, N, standalone: forms.length - N };
 }
 
 // a PROPER ER diagram: entities as tables with attributes (PK/FK) + crow's-foot cardinality
@@ -207,7 +350,9 @@ function buildMermaidFlow(p) {
 }
 
 const graph = buildGraph();
-const merER = buildMermaidER();
+// the packed layered layout above is the PRIMARY ER view — mermaid's dagre ER sprawls on deep
+// dependency chains (npd-plm feedback 2026-07-03). buildMermaidER kept for reference/reuse.
+const merER = null;
 
 // ── sections ──────────────────────────────────────────────────────────────────
 const sData = forms.map((f) => {
@@ -243,7 +388,7 @@ const missBlock = suspects.length ? `<div class="missblock"><h3>⚠ Possibly mis
 const sLogic = `${sLogicItems || '<p class="empty">No formulas / aggregates / lookups proposed.</p>'}${missBlock}`;
 
 const dLegend = `<div class="legend"><span class="lg proc">Process</span><span class="lg form">Form</span><span class="lg child">Child table</span><span class="lg list">List</span><span class="lgline"><i class="solid"></i> one-to-many</span><span class="lgline"><i class="dash"></i> contains</span></div>`;
-const dHint = `<span class="hint">${merER ? "wheel scrolls · pinch / ctrl+wheel / buttons zoom · drag to pan" : "hover a box to trace links · click to jump"}</span>`;
+const dHint = `<span class="hint">${merER ? "wheel scrolls · pinch / ctrl+wheel / buttons zoom · drag to pan" : "colored curves = a busy hub\u2019s links (hover to intensify) · ⤢ on any card opens it with just its connections · click a card to jump"}</span>`;
 const erCC = `<div class="ercc"><button id="zin" title="Zoom in">+</button><button id="zout" title="Zoom out">–</button><button id="zfit" title="Fit to screen">⤢</button><span class="ercc-sep"></span><button id="erdl" title="Download SVG">⤓</button><button id="erprint" title="Print">⎙</button></div>`;
 const dNote = graph.standalone > 0 ? `<p class="dnote">${graph.N} related entities shown · ${graph.standalone} standalone entities not drawn (see the Data &amp; Fields step).</p>` : "";
 const sDiagram = graph.N === 0 ? graph.svg
@@ -337,8 +482,11 @@ function parseDecisionLog(md) {
   const stages = []; let stage = null, dec = null;
   for (const line of String(md).split(/\r?\n/)) {
     let m;
-    if ((m = line.match(/^##\s+(.*)/))) { stage = { title: m[1].trim(), intro: [], decisions: [] }; stages.push(stage); dec = null; continue; }
-    if ((m = line.match(/^###\s+(.*)/))) { if (!stage) { stage = { title: "", intro: [], decisions: [] }; stages.push(stage); } dec = { title: m[1].trim(), body: [] }; stage.decisions.push(dec); continue; }
+    // "## 2026-07-02 — Stage 2 …" is a STAGE banner; "## D7 — Declines are terminal" is a DECISION
+    // (agent-authored logs use ## for individual decisions — parse by shape, not heading level)
+    if ((m = line.match(/^##\s+(.*)/)) && /^\d{4}-\d{2}-\d{2}/.test(m[1])) { stage = { title: m[1].trim(), intro: [], decisions: [] }; stages.push(stage); dec = null; continue; }
+    if ((m = line.match(/^##+\s+(.*)/))) { if (!stage) { stage = { title: "", intro: [], decisions: [] }; stages.push(stage); } dec = { title: m[1].trim(), body: [] }; stage.decisions.push(dec); continue; }
+    if ((m = line.match(/^#\s+(.*)/)) && stages.length) { stage = { title: m[1].trim(), intro: [], decisions: [] }; stages.push(stage); dec = null; continue; }
     if (/^#\s/.test(line)) continue;
     if (dec) dec.body.push(line); else if (stage) stage.intro.push(line);
   }
@@ -383,9 +531,11 @@ const chipify = (html) => html.replace(CODE_RE, (m) => {
   if (q) return `<a class="refchip qlink" href="#q-${q[1]}" data-q="${q[1]}">${m}</a>`;
   return `<span class="refchip">${m}</span>`;
 });
+const IMPOSSIBILITY_RE = /\[impossibility\]|not (?:expressible|buildable|supported|natively)|no (?:engine |platform )?primitive|cannot be (?:expressed|built|enforced)|has no mechanism|NOT wirable|unenforceable|(?:known )?live no-op|no (?:conditions? on the live|arithmetic in|time[- ]?(?:based )?trigger)|sequence-only|no targeted send-back/i;
 const decCard = (d, si, i) => {
   const id = `dec-${si}-${i}`;
   const body = d.body.join("\n");
+  const impossibility = IMPOSSIBILITY_RE.test(body) || IMPOSSIBILITY_RE.test(d.title);
   const whyM = body.match(/\*\*Why:?\*\*\s*([\s\S]*?)(?=\n\*\*|\n##|$)/);
   // full FIRST SENTENCE (never cut mid-clause); add a second one if the first is very short
   let why = "";
@@ -397,7 +547,7 @@ const decCard = (d, si, i) => {
   const superseded = /supersede/i.test(d.title);
   const title = d.title.split(/\s+\(SUPERSEDES/i)[0];
   return `<div class="deccard flag" id="${id}" data-kind="design-decision" data-label="${esc(title.slice(0, 90))}">
-    <div class="dechd"><h4>${chipify(esc(title))}</h4>${superseded ? `<span class="decsup">replaces an earlier decision</span>` : ""}<span class="decstatus">${esc(status.replace(/\.$/, ""))}</span>
+    <div class="dechd"><h4>${chipify(esc(title))}</h4>${impossibility ? `<span class="decimp" title="This decision relies on a belief that the platform cannot do something. Such beliefs silently degrade designs and have been wrong before (DEF-4, R7, §1b) — challenge it.">⚠ relies on an impossibility claim</span>` : ""}${superseded ? `<span class="decsup">replaces an earlier decision</span>` : ""}<span class="decstatus">${esc(status.replace(/\.$/, ""))}</span>
       <div class="rev"><button class="revbtn ok" title="Agree">✓</button><button class="revbtn chg" title="Disagree — request a change">✎</button><button class="revbtn q" title="Ask about this">?</button></div></div>
     ${why ? `<p class="decwhy">${chipify(esc(why))}</p>` : ""}
     <details class="decfull"><summary>Full rationale &amp; alternatives considered</summary><div class="mddoc">${chipify(mdToHtml(body))}</div></details>
@@ -410,7 +560,9 @@ const decLogHtml = decStages.map((s, si) => {
   return `<div class="decstage"><h3 class="decstageh">${esc(name)}${meta ? ` <span class="stagemeta">${esc(meta)}</span>` : ""}</h3>
     ${s.decisions.length ? s.decisions.map((d, i) => decCard(d, si, i)).join("") : (introTxt ? `<details class="decfull solo"><summary>Stage notes</summary><div class="mddoc">${chipify(mdToHtml(introTxt))}</div></details>` : "")}</div>`;
 }).join("");
-const decLegend = `<div class="declegend"><b>How to read the codes:</b> <span class="refchip">Q19</span> an open question — click it to jump to the question card · <span class="refchip">br-…</span> a business rule from your BRD · <span class="refchip">j-…</span> a user journey · <span class="refchip">R7</span>/<span class="refchip">SEC-1</span>/<span class="refchip">EXP-2</span>/<span class="refchip">INT-C1</span> tracked build risks and their resolutions · “waiver” = a known platform limitation accepted for now.</div>`;
+const impossibilityCount = decStages.reduce((n, st) => n + st.decisions.filter((d) => IMPOSSIBILITY_RE.test(d.body.join("\n")) || IMPOSSIBILITY_RE.test(d.title)).length, 0);
+const impCallout = impossibilityCount ? `<div class="impcall"><b>⚠ ${impossibilityCount} decision${impossibilityCount > 1 ? "s" : ""} rely on impossibility claims</b> — beliefs that the platform cannot do something. Three such beliefs have been proven false before (child tables, cross-flow aggregates, formula stripping), each silently degrading designs. The flagged cards below deserve a platform owner's challenge; pending claims live in <code>CONFIRM-QUEUE.md</code>.</div>` : "";
+const decLegend = `${impCallout}<div class="declegend"><b>How to read the codes:</b> <span class="refchip">Q19</span> an open question — click it to jump to the question card · <span class="refchip">br-…</span> a business rule from your BRD · <span class="refchip">j-…</span> a user journey · <span class="refchip">R7</span>/<span class="refchip">SEC-1</span>/<span class="refchip">EXP-2</span>/<span class="refchip">INT-C1</span> tracked build risks and their resolutions · “waiver” = a known platform limitation accepted for now.</div>`;
 // one Decisions wizard step, two sub-tabs
 const subUser = qSection || `<p class="empty">No open questions — nothing needs your decision.</p>`;
 const subLog = decisions
@@ -635,6 +787,7 @@ main{max-width:1560px;margin:0 auto;padding:30px 28px 64px}
 /* Data & Fields — entity left-nav */
 .datawrap{display:grid;grid-template-columns:230px minmax(0,1fr);gap:18px;align-items:start}
 .dnav{position:sticky;top:calc(var(--top) + 12px);max-height:calc(100vh - var(--top) - 96px);overflow:auto;background:var(--card2);backdrop-filter:var(--glass);-webkit-backdrop-filter:var(--glass);border:1px solid var(--brd);border-radius:14px;padding:8px;box-shadow:0 12px 34px -24px rgba(30,41,59,.5)}
+.item.flag,.qcard,.deccard,.autocard,#nav-h{scroll-margin-top:170px}/* anchors land BELOW the sticky header+pills */
 .dnav-link{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 10px;border-radius:10px;font-size:13px;font-weight:600;color:var(--ink);text-decoration:none}
 .dnav-link:hover{background:rgba(255,255,255,.65)}
 .dnav-link.on{background:var(--grad);color:#fff;box-shadow:0 6px 14px -8px rgba(38,54,95,.7)}
@@ -715,6 +868,8 @@ main{max-width:1560px;margin:0 auto;padding:30px 28px 64px}
 .refchip{display:inline-block;font-family:ui-monospace,monospace;font-size:11px;background:var(--card2);border:1px solid var(--brd);border-radius:5px;padding:0 5px;line-height:1.6;white-space:nowrap}
 a.refchip.qlink{color:#2563eb;text-decoration:none;border-color:#2563eb66;cursor:pointer}
 .declegend{font-size:12.5px;color:var(--muted);background:var(--card2);border:1px solid var(--brd);border-radius:var(--r);padding:9px 12px;margin-bottom:14px;line-height:1.9}
+.decimp{font-size:11px;font-weight:800;color:#b45309;border:1px solid #f59e0b88;background:#fef3c7;border-radius:6px;padding:2px 8px;white-space:nowrap;cursor:help}
+.impcall{font-size:13px;color:#7a5410;background:#fef7e6;border:1.5px solid #f0c86e;border-radius:var(--r);padding:12px 16px;margin-bottom:12px;line-height:1.6}
 .qcard.pulse{box-shadow:0 0 0 3px #2563eb66;transition:box-shadow .3s}
 /* automations: Kissflow-integration-style trigger→action canvas */
 .autogrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:14px;margin-top:12px}
@@ -819,10 +974,44 @@ a.refchip.qlink{color:#2563eb;text-decoration:none;border-color:#2563eb66;cursor
 .ercc{position:absolute;top:14px;right:14px;z-index:5;display:flex;gap:6px;align-items:center;background:var(--card2);backdrop-filter:var(--glass);-webkit-backdrop-filter:var(--glass);border:1px solid var(--brd);border-radius:12px;padding:6px;box-shadow:0 12px 30px -16px rgba(30,41,59,.55)}
 .ercc button{width:32px;height:32px;border:1px solid var(--brd);background:rgba(255,255,255,.85);border-radius:9px;font-size:15px;font-weight:700;cursor:pointer;color:var(--ink);display:grid;place-items:center;line-height:1}
 .ercc button:hover{background:#eef4ff}.ercc-sep{width:1px;height:20px;background:var(--line)}
-.diagram{background:var(--card2);border:1px solid var(--brd);border-radius:var(--r);overflow:auto;height:calc(100vh - 240px);min-height:360px;display:flex;padding:6px;cursor:grab;box-shadow:var(--sh)}.diagram svg{display:block;margin:auto}
-.node rect{fill:#eff6ff;stroke:#3b82f6;stroke-width:1.5;transition:opacity .12s}.node.proc rect{fill:var(--primary-soft);stroke:#6366f1}.node.child rect{fill:#fff7ed;stroke:#fb923c}.node.list rect{fill:#f1f5f9;stroke:#94a3b8}
-.node text{fill:#0f172a;font:600 12px -apple-system,system-ui,sans-serif;dominant-baseline:middle;text-anchor:middle}.node{cursor:pointer}.node:hover rect{stroke-width:2.5}.node.dim{opacity:.22}
-.edge{fill:none;stroke:#cbd5e1;stroke-width:1.4}.edge.child{stroke-dasharray:5 4}.edge.hot{stroke:var(--primary);stroke-width:2.4}
+.diagram{background:var(--card2);border:1px solid var(--brd);border-radius:var(--r);overflow:auto;height:calc(100vh - 240px);min-height:360px;display:flex;padding:6px;cursor:grab;box-shadow:var(--sh)}.diagram svg{display:block;margin:auto}.diagram>div{margin:auto}
+.node{cursor:pointer}.node.dim{opacity:.18}
+.node rect.bd{fill:#fff;stroke:#3b82f6;stroke-width:1.4;filter:drop-shadow(0 3px 8px rgba(30,41,59,.10));transition:opacity .12s}
+.node rect.hd,.node rect.hd2{fill:#eff6ff}
+.node.proc rect.bd{stroke:#6366f1}.node.proc rect.hd,.node.proc rect.hd2{fill:var(--primary-soft)}
+.node.child rect.bd{stroke:#fb923c}.node.child rect.hd,.node.child rect.hd2{fill:#fff7ed}
+.node.list rect.bd{stroke:#94a3b8}.node.list rect.hd,.node.list rect.hd2{fill:#f1f5f9}
+.node:hover rect.bd{stroke-width:2.4}
+.node text{dominant-baseline:middle}
+.node text.tt{fill:#0f172a;font:700 12.5px -apple-system,system-ui,sans-serif;text-anchor:middle}
+.node text.rt{fill:#334155;font:500 10.5px -apple-system,system-ui,sans-serif;text-anchor:start}
+.node text.rk{fill:#6479a8;font:800 8.5px -apple-system,system-ui,sans-serif;text-anchor:end;letter-spacing:.5px}
+.node text.rm{fill:#94a3b8;font:italic 500 10px -apple-system,system-ui,sans-serif;text-anchor:start}
+.node line.rl{stroke:#e8ecf4;stroke-width:1}
+.gp{fill:#f4f6fb;stroke:#e2e7f3;stroke-width:1.5}
+.gp.gpp{fill:#f6f2ff;stroke:#8b6cf6;stroke-width:2}
+.gl.glp{fill:#6d28d9}
+.gl{fill:#7e88a6;font:800 11.5px -apple-system,system-ui,sans-serif;letter-spacing:1.6px;text-anchor:start}
+.gc{fill:#b3bad0;font:700 11px -apple-system,system-ui,sans-serif;text-anchor:end}
+.edge{fill:none;stroke:#b3c0d8;stroke-width:1.5}.edge.child{stroke-dasharray:5 4}
+.edge.rail{stroke-width:2;opacity:.45;stroke-linecap:round}
+.edge.rail.trunk{stroke-width:2.5}
+.edge.hot{stroke:var(--primary);stroke-width:2.4}
+.edge.rail.hot{opacity:1;stroke-width:3}
+.hubb{cursor:pointer}
+.hubb rect{fill:#fff;stroke:#6479c8;stroke-width:1.2;filter:drop-shadow(0 2px 4px rgba(30,41,59,.15))}
+.hubb text{fill:#3c4c96;font:800 9.5px -apple-system,system-ui,sans-serif;text-anchor:middle;dominant-baseline:middle}
+.hubb:hover rect{fill:#eef1ff}
+.fic{cursor:pointer}
+.fic circle{fill:#fff;stroke:#c3cbe0;stroke-width:1.2}
+.fic text{fill:#5b6b95;font:700 10px -apple-system,system-ui,sans-serif;text-anchor:middle;dominant-baseline:middle}
+.fic:hover circle{stroke:var(--primary)}.fic:hover text{fill:var(--primary)}
+.erfocus{position:absolute;inset:0;background:var(--card2);z-index:6;display:flex;flex-direction:column;border-radius:var(--r)}
+.erfhead{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--line);font-size:13.5px;flex:none}
+.erfhead .cnt{color:var(--muted)}
+.erfhead button{margin-left:auto}
+.erfbody{overflow:auto;flex:1;padding:12px}
+.erfocus svg{display:block;width:100%;height:auto}
 .screen{border:1px solid var(--brd);border-radius:14px;overflow:hidden;background:var(--card2);backdrop-filter:var(--glass);-webkit-backdrop-filter:var(--glass);margin-top:8px;box-shadow:0 12px 34px -24px rgba(30,41,59,.5)}
 .sbar{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.5);border-bottom:1px solid var(--brd);padding:8px 12px}
 .dots{display:flex;gap:4px}.dots i{width:9px;height:9px;border-radius:50%;background:#e2e8f0}
@@ -927,9 +1116,9 @@ function natSize(s){return s&&s.id==="ersvg"?{w:EW,h:EH}:merBase}
 function applyScale(){var s=zsvg();var n=natSize(s);if(!s||!n||!n.w)return;s.style.maxWidth="none";s.setAttribute("width",Math.round(n.w*zbase*z));s.setAttribute("height",Math.round(n.h*zbase*z))}
 function sizeER(){var s=document.querySelector("#ermer svg");if(!s||merBase)return;var bb;try{bb=s.getBBox()}catch(e){return}merBase={w:Math.ceil(bb.width)+24,h:Math.ceil(bb.height)+24}}
 function fitER(){var wrap=document.getElementById("erwrap")||document.querySelector("#s-diagram .diagram");var s=zsvg();var n=natSize(s);if(!wrap||!s||!n||!n.w)return;var cw=wrap.clientWidth-24,ch=wrap.clientHeight-24;if(cw<60||ch<60)return;
-  var fit=Math.min(cw/n.w,ch/n.h),MINR=0.82;/* legibility floor — never shrink below this; pan instead */
-  zbase=Math.min(Math.max(fit,MINR),1.4);z=1;applyScale();
-  if(zbase>fit+0.001){wrap.scrollLeft=0;wrap.scrollTop=0}/* larger than viewport → start at top-left */}
+  var fit=cw/n.w;/* fit the WIDTH on load (no horizontal scroll); taller diagrams scroll vertically */
+  zbase=Math.min(fit,1.4);z=1;applyScale();
+  wrap.scrollLeft=0;wrap.scrollTop=0;/* start at the top, horizontally centered */}
 function setZoom(v){z=Math.min(8,Math.max(.15,v));applyScale()}
 if(document.getElementById("zin"))document.getElementById("zin").onclick=function(){setZoom(z*1.25)};
 if(document.getElementById("zout"))document.getElementById("zout").onclick=function(){setZoom(z/1.25)};
@@ -953,18 +1142,52 @@ addEventListener("resize",function(){if(cur===DIAGSTEP)fitER()});
   var DL=document.getElementById("erdl");if(DL)DL.onclick=function(){var c=erSVG();if(!c)return;var data='<?xml version="1.0" encoding="UTF-8"?>\\n'+new XMLSerializer().serializeToString(c);var blob=new Blob([data],{type:"image/svg+xml;charset=utf-8"});var url=URL.createObjectURL(blob);var a=document.createElement("a");a.href=url;a.download=KEY.replace("review-","")+"-er.svg";document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url)},1000)};
   var PR=document.getElementById("erprint");if(PR)PR.onclick=function(){var c=erSVG();if(!c)return;c.removeAttribute("width");c.removeAttribute("height");c.setAttribute("style","width:100%;height:auto");var nm=document.title.replace(/^Design Review — /,"");var w=window.open("","_blank");if(!w){alert("Allow pop-ups to print the diagram.");return}w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>ER — '+nm+'</title><style>@page{size:landscape;margin:12mm}body{margin:0;font-family:-apple-system,Inter,system-ui,sans-serif}h1{font-size:15px;margin:0 0 8px}</style></head><body><h1>Data Model — '+nm+'</h1>'+new XMLSerializer().serializeToString(c)+'</body></html>');w.document.close();w.focus();setTimeout(function(){w.print()},350)};
 })();
-// side-nav scroll-spy (Data & Fields + Pages) — highlight the section in view, in the active step
-addEventListener("scroll",function(){var sec=document.querySelector('.step[data-i="'+cur+'"]');if(!sec)return;
+// side-nav scroll-spy (Data & Fields + Pages) — highlight the section in view, in the active step.
+// A CLICK sets the highlight immediately and holds off the spy briefly, so the clicked entity stays
+// selected even when the page can't scroll far enough to bring it under the threshold.
+var spyHold=0;
+[].forEach.call(document.querySelectorAll(".dnav-link"),function(a){a.addEventListener("click",function(){
+  spyHold=Date.now()+900;
+  var nav=a.closest(".dnav");if(nav)[].forEach.call(nav.querySelectorAll(".dnav-link"),function(o){o.classList.toggle("on",o===a)})})});
+addEventListener("scroll",function(){if(Date.now()<spyHold)return;
+  var sec=document.querySelector('.step[data-i="'+cur+'"]');if(!sec)return;
   var links=[].slice.call(sec.querySelectorAll(".dnav-link"));if(!links.length)return;var curId="";
   links.forEach(function(a){var t=document.getElementById(a.dataset.target);if(t&&t.getBoundingClientRect().top<180)curId=a.dataset.target});
+  if(window.scrollY+innerHeight>=document.documentElement.scrollHeight-4)curId=links[links.length-1].dataset.target;
   links.forEach(function(a){a.classList.toggle("on",a.dataset.target===curId)})});
 [].forEach.call(document.querySelectorAll(".node"),function(nd){var id=nd.dataset.id;
   nd.addEventListener("mouseenter",function(){var live={};live[id]=1;
     [].forEach.call(document.querySelectorAll(".edge"),function(ed){var on=ed.dataset.a===id||ed.dataset.b===id;ed.classList.toggle("hot",on);if(on){live[ed.dataset.a]=1;live[ed.dataset.b]=1}});
     [].forEach.call(document.querySelectorAll(".node"),function(o){o.classList.toggle("dim",!live[o.dataset.id])})});
   nd.addEventListener("mouseleave",function(){[].forEach.call(document.querySelectorAll(".edge"),function(e){e.classList.remove("hot")});[].forEach.call(document.querySelectorAll(".node"),function(o){o.classList.remove("dim")})})});
+// FOCUS MODE — a busy hub's neighbors rarely fit one viewport, so its ⇄ badge opens an overlay with
+// JUST that entity + everything connected, re-packed to fit (width-fitted, vertical scroll).
+function focusNode(id){
+  var pane=document.querySelector(".diagpane");var src=document.querySelector('.node[data-id="'+id+'"]');if(!pane||!src)return;
+  var nb={};[].forEach.call(document.querySelectorAll(".edge"),function(ed){if(ed.dataset.a===id)nb[ed.dataset.b]=1;else if(ed.dataset.b===id)nb[ed.dataset.a]=1});
+  var mk=function(nid){var n=document.querySelector('.node[data-id="'+nid+'"]');if(!n)return null;var el=n.cloneNode(true);el.classList.remove("dim");var bd=el.querySelector("rect.bd");return{el:el,g:el.querySelector("g"),h:+bd.getAttribute("height"),w:+bd.getAttribute("width")}};
+  var hub=mk(id),cl=Object.keys(nb).map(mk).filter(Boolean);if(!hub)return;
+  var GAPX=30,GAPY=18,PADF=30,CW2=hub.w;
+  var tot=cl.reduce(function(s,c){return s+c.h+GAPY},0);
+  var cols=Math.max(1,Math.min(5,Math.ceil(Math.sqrt(cl.length/1.4))));
+  var tgt=tot/cols,c=0,y=0,colH=[];
+  cl.forEach(function(x){if(y>0&&y+x.h>tgt&&c<cols-1){colH[c]=y;c++;y=0}x.ci=c;x.cy=y;y+=x.h+GAPY});colH[c]=y;
+  var maxH=Math.max.apply(null,colH),x0=PADF+CW2+96;
+  var W=x0+(c+1)*(CW2+GAPX)-GAPX+PADF,Ht=Math.max(maxH,hub.h)+PADF*2,hy=(Ht-hub.h)/2;
+  hub.g.setAttribute("transform","translate("+PADF+" "+hy+")");
+  var ser=new XMLSerializer(),parts=[];
+  cl.forEach(function(x){x.x=x0+x.ci*(CW2+GAPX);x.y=PADF+x.cy;x.g.setAttribute("transform","translate("+x.x+" "+x.y+")");
+    parts.push('<path class="edge hot" d="M'+(PADF+CW2)+' '+(hy+hub.h/2)+' C '+(PADF+CW2+56)+' '+(hy+hub.h/2)+', '+(x.x-56)+' '+(x.y+22)+', '+x.x+' '+(x.y+22)+'"/>')});
+  var name=(src.querySelector("text.tt")||{}).textContent||id;
+  var ov=document.createElement("div");ov.className="erfocus";
+  ov.innerHTML='<div class="erfhead"><b>'+name+'</b><span class="cnt">'+cl.length+' connected entities</span><button class="mini2" id="erfclose">\u2715 back to full map</button></div><div class="erfbody"><svg viewBox="0 0 '+W+' '+Ht+'" xmlns="http://www.w3.org/2000/svg">'+parts.join("")+ser.serializeToString(hub.el)+cl.map(function(x){return ser.serializeToString(x.el)}).join("")+'</svg></div>';
+  pane.appendChild(ov);
+  document.getElementById("erfclose").onclick=function(){ov.remove()};
+}
+[].forEach.call(document.querySelectorAll(".hubb,.fic"),function(b){b.addEventListener("click",function(e){e.preventDefault();e.stopPropagation();focusNode(b.closest(".node").dataset.id)})});
 if(window.mermaid){mermaid.initialize({startOnLoad:false,securityLevel:"loose",theme:"base",
   fontFamily:"-apple-system,Inter,system-ui,sans-serif",
+  er:{diagramPadding:12,entityPadding:10,minEntityWidth:90,minEntityHeight:40,layoutDirection:"TB",useMaxWidth:false},
   flowchart:{curve:"basis",htmlLabels:true,padding:14,nodeSpacing:40,rankSpacing:60},
   themeVariables:{fontFamily:"-apple-system,Inter,system-ui,sans-serif",fontSize:"13px",
     primaryColor:"#e9f0ff",primaryTextColor:"#0f1a2e",primaryBorderColor:"#6f9bff",

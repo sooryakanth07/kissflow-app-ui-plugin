@@ -99,10 +99,23 @@ function addAggregate(blob, field, f, fid, resolve) {
   // AggregateField even for Count — missing any → publish 500 QueryDefinitionValidationException.
   const ad = {
     Id: adId, Kind: "QueryDefinition", Field: fid, LHSModel: lhs,
-    LHSRootModel: field.Model,
     FlowType: f.aggregate.flowType || blob[field.Model]?.FlowType || "Form", LookupField: [],
     AggregateType: AGG_TYPE[String(f.aggregate.fn || "SUM").toUpperCase()] || "Sum",
   };
+  if (f.aggregate.match) {
+    // CROSS-FLOW per-item aggregate (live-verified 2026-07-04, supersedes R7 "not expressible"):
+    // SUM/COUNT another FLOW's field where <target's match.field> == THIS item. Golden shape (ITAM
+    // Asset_Disposal "Repair costs until now"): LHSModelApplicationId + Criteria/Condition join,
+    // NO LHSRootModel. f.aggregate = { fn, over:"<flow>", field, flowType?, match:{ field:"<ref on
+    // target>", equals?:"<self field, default _id>" }, app? }.
+    ad.LHSModelApplicationId = f.aggregate.app || "__APP__"; // placeholder → filled by buildApp post-pass
+    const crId = eid("Criteria", adId), cnId = eid("Condition", adId);
+    ad["QueryDefinition::Criteria"] = [crId];
+    blob[crId] = { Id: crId, Kind: "Criteria", QueryDefinition: adId, "Criteria::Condition": [cnId] };
+    blob[cnId] = { Id: cnId, Kind: "Condition", Criteria: crId, LHSField: slug(f.aggregate.match.field), Operator: "EQUAL_TO", HasArguments: true, RHSType: "Field", RHSField: f.aggregate.match.equals || "_id" };
+  } else {
+    ad.LHSRootModel = field.Model; // embedded child-table aggregate: parent context join is implicit
+  }
   if (f.aggregate.field) ad.AggregateField = slug(f.aggregate.field);
   else {
     const first = Object.values(blob).find((v) => v && v.Kind === "Field" && v.Model === lhs);
@@ -220,7 +233,7 @@ export function buildForm(spec, appId, idmap = {}, flowTypes = {}) {
     // Attach a list reference ONLY when referredList names a real list (in idmap). The old
     // `|| f.name` fallback turned any plain Select into a phantom list ref (the field name),
     // which the remap never resolves → dangling cross-ref → the whole form/process is skipped.
-    if ((f.type === "Select" || f.type === "Multiselect") && f.referredList && idmap[f.referredList]) field.ReferredList = idmap[f.referredList];
+    if ((f.type === "Select" || f.type === "Multiselect") && f.referredList) field.ReferredList = idmap[f.referredList] || f.referredList; // verbatim fallback: a bare Select publishes as an opaque 500
 
     // reference / user lookup
     if (REF_TYPES.has(f.type)) {
@@ -353,7 +366,7 @@ function buildFieldInto(blob, modelId, f, idmap, withColumn, flowTypes = {}) {
   if (withColumn) field.Column = withColumn;
   if (f.required) field.Required = true;
   if (f.type === "Currency") field.CurrencyTypes = [f.currency || "USD"];
-  if ((f.type === "Select" || f.type === "Multiselect") && f.referredList && idmap[f.referredList]) field.ReferredList = idmap[f.referredList];
+  if ((f.type === "Select" || f.type === "Multiselect") && f.referredList) field.ReferredList = idmap[f.referredList] || f.referredList; // verbatim fallback: a bare Select publishes as an opaque 500
   if (REF_TYPES.has(f.type)) {
     const qdId = eid("QueryDefinition", modelId + ":" + fid);
     field["Field::QueryDefinition"] = [qdId];
@@ -388,6 +401,10 @@ export function addChildTable(parent, childSpec, fieldLabel, idmap, flowTypes = 
   blob[colId] = { Id: colId, Kind: "Column", Type: "Model", Name: fieldLabel || childSpec.name, Start: 0, End: 6, AllowImport: false, Row: rowId, "Column::Model": [childId] };
   const child = { Id: childId, Kind: "Model", Name: childSpec.name, Model: parentId, Column: colId, "Model::Row": [], "Model::Field": [] };
   blob[childId] = child;
+  // the parent MUST declare the child via Model::Model — without it, publish silently DISSOLVES the
+  // child model (fields flatten into the parent, runtime Tables:[] — DEF-4's root cause, found by
+  // diffing the golden Employee_Leave_Request export 2026-07-04).
+  blob[parentId]["Model::Model"] = [...(blob[parentId]["Model::Model"] || []), childId];
   // table fields are COLUMNS — all in ONE row, sequential (Start=0,End=0), per SDK __create_field_in_table
   const tRow = eid("Row", childId + ":row");
   child["Model::Row"].push(tRow);
@@ -516,7 +533,19 @@ export function buildBoard(spec, appId, idmap = {}, flowTypes = {}) {
   const cfBlob = { Root: cfId };
   const specStatuses = (spec.statuses && spec.statuses.length) ? spec.statuses
     : [{ name: "To Do", category: "NotStarted" }, { name: "In Progress", category: "InProgress" }, { name: "Done", category: "Done" }];
-  const built = specStatuses.map((s) => ({ id: eid("Status", modelId + ":" + s.name), name: s.name, category: s.category || "InProgress", isSystem: false }));
+  // Status Category MUST be one of the swimlane State categories {NotStarted, InProgress, Closed}
+  // (+ ReOpened). A status with Category "Done"/"Completed" publishes fine but has NO landing State,
+  // so the runtime rejects the move → the board can never reach its terminal column (hire-onboarding
+  // 2026-07-05: cases stuck pre-Completed, tasks un-Done-able; Cancelled worked only because it was
+  // already "Closed"). Normalize any terminal/done category to "Closed".
+  const normCat = (cat) => {
+    const c = String(cat || "InProgress");
+    if (/^(done|complete|completed|closed|resolved|finished)$/i.test(c)) return "Closed";
+    if (/^(notstarted|not[_ ]?started|todo|to[_ ]?do|open|new)$/i.test(c)) return "NotStarted";
+    if (/^reopened$/i.test(c)) return "ReOpened";
+    return "InProgress";
+  };
+  const built = specStatuses.map((s) => ({ id: eid("Status", modelId + ":" + s.name), name: s.name, category: normCat(s.category), isSystem: false }));
   built.push({ id: eid("Status", modelId + ":Reopened"), name: "Reopened", category: "ReOpened", isSystem: true });
 
   const statusIds = [];
@@ -746,6 +775,7 @@ export function buildApp(ir) {
         const first = Object.values(a.blob).find((x) => x && x.Kind === "Field" && x.Model === v.LHSModel);
         if (first) v.AggregateField = first.Id;
       }
+      if (v && v.LHSModelApplicationId === "__APP__") v.LHSModelApplicationId = appId; // cross-flow aggregates bind to this app
     }
   }
   return { appId, artifacts, idmap, roleIds };

@@ -24,11 +24,12 @@ owning specialist does) and you do NOT design — you judge and gate.
    - **data**: a Reference/Select with no resolvable target; a computed formula using an undefined
      field; an orphan dataset; a child table hanging off nothing.
    - **workflow**: an unreachable status; a non-terminal status/step with no exit (deadlock); a step
-     whose assignee role can never act. **Satisfiability is not just "the actor role exists"** — FLAG
-     any workflow step routed to an actor role that will have **no assignable members at go-live** (an
-     empty role = no assignee = the flow can't progress; `submit` fails outright with "no assignee for
-     the next step"). Recommend staffing the role or designating a fallback assignee (creator/admin)
-     BEFORE generate.
+     whose assignee role can never act.
+   - **staffing (satisfiability ≠ "role exists")**: a workflow step whose actor role will have **0
+     assignable members** at go-live. An empty role means "no assignee" → the very first `submit`
+     fails outright (`"There is no assignee for the next step …"`), so the record can't even sit
+     pending. Flag it as a **blocker** and recommend staffing the role or adding a fallback assignee
+     (creator/admin).
    - **permissions**: a step with zero actors; a flow no role can view; a data scope that yields an
      always-empty view.
    - **experience**: a dashboard tile bound to a non-existent report; a nav link to an unreachable

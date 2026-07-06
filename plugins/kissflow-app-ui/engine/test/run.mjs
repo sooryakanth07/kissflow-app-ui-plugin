@@ -13,6 +13,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { loadApp, allBlobs } from "../loader.mjs";
 import { validateBlob, checkStructural, checkFields, checkCaseflow, errors, warnings } from "../validators.mjs";
 import { buildForm, buildList, buildRole, buildApp, buildAutomation, buildBoard, buildKanbanPage } from "../builders.mjs";
+import { flowGrant } from "../client.mjs";
 import { fmType, resolveSkeleton, buildIntegrationDraft, buildIntegrationDraftFull, connectionsFromExport, provisionSystemConnection, ensureConnections, resolveEntityFields, applyIntegrationResolved } from "../integrations.mjs";
 import { index, entities } from "../graph.mjs";
 import { validateIR } from "../ir.mjs";
@@ -358,6 +359,26 @@ ok("resolveSkeleton: approved → ItemCompleted trigger", resolveSkeleton(upAuto
 ok("resolveSkeleton: update → UpdateAnItem action", resolveSkeleton(upAuto, skCtx).actionId === "UpdateAnItem");
 ok("resolveSkeleton: created → ItemCreated trigger", resolveSkeleton(crAuto, skCtx).triggerId === "ItemCreated");
 ok("resolveSkeleton: create → CreateAndSubmitItem action", resolveSkeleton(crAuto, skCtx).actionId === "CreateAndSubmitItem");
+// board (Case-flow) sources/targets + the rejected event — live-verified connector ids (2026-07-05)
+const bdCtx = { flowTypeOf: (f) => (f === "Case" ? "Board" : "Process") };
+const arAuto = { name: "AR8", source: { flow: "Offer", event: "completed" }, action: { type: "create", target_flow: "Case", field_map: {} } };
+ok("resolveSkeleton: Board target create → board connector + CreateItem", (() => { const s = resolveSkeleton(arAuto, bdCtx); return s.tgtKey === "board" && s.actionId === "CreateItem" && s.triggerId === "ItemCompleted"; })());
+const bcAuto = { name: "BC", source: { flow: "Case", event: "created" }, action: { type: "notify", target_flow: "Case" } };
+ok("resolveSkeleton: Board source created → ItemSubmitted trigger", resolveSkeleton(bcAuto, bdCtx).triggerId === "ItemSubmitted");
+const buAuto = { name: "BU", source: { flow: "Case", event: "updated" }, action: { type: "notify", target_flow: "Case" } };
+ok("resolveSkeleton: Board source updated → StatusUpdated trigger", resolveSkeleton(buAuto, bdCtx).triggerId === "StatusUpdated");
+const rjAuto = { name: "RJ", source: { flow: "Src", event: "rejected" }, action: { type: "notify", target_flow: "Src" } };
+ok("resolveSkeleton: rejected event → ItemRejected trigger", resolveSkeleton(rjAuto, skCtx).triggerId === "ItemRejected");
+
+// flowGrant — member-grant contract. Board MUST map to the "case" family with Permission:[] (the
+// generic path sent Board→"form"+["Delete"] → 404 + memberless boards; hire-onboarding 2026-07-05).
+ok("flowGrant: Board editable → case family, Member, Permission:[]", (() => { const g = flowGrant("Board", { editable: true }); return g.family === "case" && g.role === "Member" && g.permission.length === 0; })());
+ok("flowGrant: Board owner (admin) → case Admin, Permission:[]", (() => { const g = flowGrant("Board", { editable: true, admin: true }); return g.family === "case" && g.role === "Admin" && g.permission.length === 0; })());
+ok("flowGrant: Board read-only → case Viewer, Permission:[]", (() => { const g = flowGrant("Board", { editable: false }); return g.family === "case" && g.role === "Viewer" && g.permission.length === 0; })());
+ok("flowGrant: Case behaves like Board (case family)", flowGrant("Case", { editable: true }).family === "case");
+ok("flowGrant: Process → process family, Member, Permission:[]", (() => { const g = flowGrant("Process"); return g.family === "process" && g.role === "Member" && g.permission.length === 0; })());
+ok("flowGrant: Form editable → form family, Member+[Delete]", (() => { const g = flowGrant("Form", { editable: true }); return g.family === "form" && g.role === "Member" && g.permission[0] === "Delete"; })());
+ok("flowGrant: Form read-only → form Viewer, Permission:[]", (() => { const g = flowGrant("Form", { editable: false }); return g.family === "form" && g.role === "Viewer" && g.permission.length === 0; })());
 
 // buildIntegrationDraft — STEP SKELETON only (trigger + create/update/email action; no connection,
 // no flow binding, no field mappings — the user configures those in the builder after auth) (11)
@@ -512,5 +533,114 @@ const rrep2 = await applyIntegrationResolved(mc2, "ACC", "APP_A00", rCr, rCtx);
 ok("resolved(create): all steps 200 and NO unresolved (create needs no _id locator)", rrep2.steps.putFull === 200 && rrep2.steps.publish === 200 && !rrep2.unresolved);
 
 // ---------------- summary ----------------
+
+// ── MEMORY DECAY — scope-based TTLs, reaffirmation, archival (memory.mjs) ─────
+const { parseMemory, applyDecay, reaffirmEntry, scopeKind, DECAY_DAYS } = await import("../memory.mjs");
+const MEMFIX = `# kf-author — Agent Memory
+
+## How every agent uses this
+- READ first, WRITE on learning.
+
+## Entries
+- 2026-01-01 [global] platform truth: descriptions cap at 250 chars.
+- 2026-01-01 [app:oldapp] app fact from a long-dead project,
+  wrapped onto a second line.
+- 2026-01-01 [agent:kf-ba] role guidance for the analyst.
+- 2025-01-01 [global] ancient platform claim nobody re-checked.
+- 2025-01-01 [global] old but re-verified fact. (reaffirmed 2026-06-01)
+- 2026-01-01 [global] promoted stub → see reference/LESSONS.md §5.
+`;
+const pm = parseMemory(MEMFIX);
+ok("memory: parse → 6 entries, prologue preserved", pm.items.filter((i) => i.raw === undefined).length === 6 && pm.prologue.join("\n").includes("READ first"));
+ok("memory: wrapped continuation lines stay with their entry", pm.items.filter((i) => i.raw === undefined)[1].lines.length === 2);
+ok("memory: scope kinds resolve (app/agent/global/stub)", scopeKind(pm.items.filter((i)=>i.raw===undefined)[1]) === "app" && scopeKind(pm.items.filter((i)=>i.raw===undefined)[5]) === "stub");
+const dec = applyDecay(MEMFIX, "2026-07-03");
+ok("memory decay: [app] expires after 90d, [global] survives at ~6mo", dec.archived.some((a) => a.scope === "app:oldapp") && !dec.archived.some((a) => a.lines[0].includes("descriptions cap")));
+ok("memory decay: unaffirmed 18-month global expires; reaffirmed twin survives", dec.archived.some((a) => a.lines[0].includes("ancient platform claim")) && !dec.archived.some((a) => a.lines[0].includes("re-verified fact")));
+ok("memory decay: agent guidance (6mo) survives its 240d window", !dec.archived.some((a) => a.scope === "agent:kf-ba"));
+ok("memory decay: survivors + prologue intact in output; archive annotated", dec.out.includes("READ first") && dec.out.includes("descriptions cap") && !dec.out.includes("ancient platform claim") && dec.archiveOut.includes("archived 2026-07-03 (decay:"));
+const reaf = reaffirmEntry(MEMFIX, "ancient platform claim", "2026-07-01");
+ok("memory reaffirm: marker appended and resets the decay clock", reaf.hit && applyDecay(reaf.out, "2026-07-03").archived.every((a) => !a.lines[0].includes("ancient platform claim")));
+
+
+// ── TIMELINE — per-run timing instrumentation (timeline.mjs) ──────────────────
+const { parseTimeline, summarize, fmtMs } = await import("../timeline.mjs");
+const TL = [
+  { ts: "2026-07-03T06:00:00.000Z", actor: "kf-ba", step: "extract domain", ev: "start" },
+  { ts: "2026-07-03T06:12:30.000Z", actor: "kf-ba", step: "extract domain", ev: "end" },
+  { ts: "2026-07-03T06:12:31.000Z", actor: "runs", step: "snapshot v1", ev: "mark" },
+  { ts: "2026-07-03T06:13:00.000Z", actor: "engine", step: "apply", ev: "start" },
+  { ts: "2026-07-03T06:41:00.000Z", actor: "engine", step: "apply", ev: "end" },
+  { ts: "2026-07-03T06:50:00.000Z", actor: "kf-acceptance", step: "journeys", ev: "start" },
+].map((e) => JSON.stringify(e)).join("\n");
+const tlEvents = parseTimeline(TL + "\nnot json\n");
+ok("timeline: parser skips malformed lines", tlEvents.length === 6);
+const tlSum = summarize(tlEvents);
+ok("timeline: start/end pair into a measured span", tlSum.spans.some((x) => x.actor === "kf-ba" && x.ms === 750000));
+ok("timeline: apply span measured (28m)", tlSum.byActor.engine === 28 * 60000);
+ok("timeline: marks kept, open span flagged", tlSum.spans.some((x) => x.mark) && tlSum.spans.some((x) => x.open && x.actor === "kf-acceptance"));
+ok("timeline: wall-clock = first→last event", tlSum.total === 50 * 60000);
+ok("timeline: durations format human-readable", fmtMs(750000) === "12m 30s" && fmtMs(28 * 60000) === "28m 0s");
+
+
+// ── EXPERIENCE BASELINE — permission model ids resolve to form names (VER-B1) ─
+const { ensureExperience } = await import("../experience.mjs");
+const expIR = { app: { name: "Exp" }, roles: [{ name: "Requester" }, { name: "Finance" }],
+  forms: [
+    { id: "purchase-requisition", name: "Purchase Requisition", flowType: "Process", fields: [{ name: "Title", type: "Text" }, { name: "Status", type: "Select" }], workflow: { steps: [{ name: "S", actor: "Requester" }, { name: "Done" }] } },
+    { id: "p2p-vendor", name: "P2P Vendor", fields: [{ name: "Vendor Name", type: "Text" }] }],
+  permissions: [
+    { role: "Requester", model: "purchase-requisition", level: "Editable" },   // by ID
+    { role: "Finance", model: "Purchase Requisition", level: "ReadOnly" },     // by NAME
+    { role: "Finance", model: "P2P_VENDOR", level: "ReadOnly" }] };            // sloppy casing
+const expOut = ensureExperience(JSON.parse(JSON.stringify(expIR)));
+const reqHome = expOut.ir.pages.find((p2) => p2.role === "Requester");
+ok("experience: id-based permission still yields worklist + create action", reqHome && reqHome.cards.some((c) => c.view === "action" && c.source_flow === "Purchase Requisition") && reqHome.cards.some((c) => c.view === "list"));
+const finHome = expOut.ir.pages.find((p2) => p2.role === "Finance");
+ok("experience: name + sloppy-cased refs canonicalize to display names", finHome && finHome.cards.every((c) => !c.source_flow || ["Purchase Requisition", "P2P Vendor"].includes(c.source_flow)));
+ok("experience: flow worklist page + non-degenerate nav generated", expOut.ir.pages.some((p2) => p2.name === "Purchase Requisition" && !p2.landing) && expOut.ir.nav.menus.length >= 2);
+
+
+// Select referredList outside idmap must survive VERBATIM (bare Select publishes as opaque 500)
+const selForm = buildForm({ name: "Sel", fields: [{ name: "UoM", type: "Select", referredList: "P2P_Unit_of_Measure_A02" }] }, "APP");
+ok("select: referredList outside idmap kept verbatim", selForm.blob["UoM"].ReferredList === "P2P_Unit_of_Measure_A02");
+
+
+// cross-flow PER-ITEM aggregate (supersedes R7): Criteria join, app id, no LHSRootModel
+const xIR = { app: { name: "XAgg" }, roles: [], forms: [
+  { name: "Order", flowType: "Process", fields: [{ name: "Title", type: "Text" }, { name: "Grand Total", type: "Currency", aggregate: { fn: "SUM", over: "Order Line", field: "Line Total", flowType: "Form", match: { field: "Order" } } }], workflow: { steps: [{ name: "S" }, { name: "Done" }] } },
+  { name: "Order Line", fields: [{ name: "Desc", type: "Text" }, { name: "Order", type: "Reference", ref: "Order" }, { name: "Line Total", type: "Currency" }] }] };
+const xBlob = buildApp(xIR).artifacts.find((a) => a.id === "Order_A00").blob;
+const xQd = xBlob[xBlob["Grand_Total"]["Field::QueryDefinition"][0]];
+ok("xflow aggregate: QD targets the flow with app id, no LHSRootModel", xQd.LHSModel === "Order_Line_A00" && xQd.LHSModelApplicationId === "XAgg_A00" && !xQd.LHSRootModel);
+const xCn = xBlob[xBlob[xQd["QueryDefinition::Criteria"][0]]["Criteria::Condition"][0]];
+ok("xflow aggregate: Criteria join <target.ref == this._id>", xCn.LHSField === "Order" && xCn.RHSField === "_id" && xCn.Operator === "EQUAL_TO");
+
+
+// DEF-4 root cause: parent must declare its child via Model::Model or publish dissolves the child
+const ctIR = { app: { name: "CT2" }, roles: [], forms: [
+  { name: "Order2", flowType: "Process", fields: [{ name: "Title", type: "Text" }], workflow: { steps: [{ name: "S" }, { name: "Done" }] } },
+  { name: "Order2 Lines", childOf: "Order2", fields: [{ name: "Desc", type: "Text" }] }] };
+const ctBlob = buildApp(ctIR).artifacts.find((a) => a.id === "Order2_A00").blob;
+ok("child table: parent declares child via Model::Model", JSON.stringify(ctBlob["Order2_A00"]["Model::Model"]) === JSON.stringify(["Order2_Lines_A00"]));
+
+
+// FEDERATION — contribution extracts shareable scopes, withholds project-private entries
+const { extractContribution } = await import("../memory.mjs");
+const LOCAL = "- 2026-07-04 [global] a platform truth.\n- 2026-07-04 [app:acme-p2p] customer-specific fact.\n- 2026-07-04 [agent:kf-ba] role guidance.\n";
+const contrib = extractContribution(LOCAL, "2026-07-04");
+ok("federation: contribution shares global+agent, withholds [app:*]", contrib.shared === 2 && contrib.withheld === 1 && !contrib.out.includes("acme-p2p") && contrib.out.includes("platform truth"));
+
+
+// PROTOTYPE ASSEMBLER — parallel-generated parts splice into the shell deterministically
+const { assemble } = await import("../proto-assemble.mjs");
+const shellFx = "<html><body><section><!-- @PART:role-finance --></section><section><!-- @PART:role-requester --></section></body></html>";
+const asm = assemble(shellFx, { "role-finance": "<div>AP DESK</div>", "role-requester": "<div>INTAKE</div>", "role-extra": "<div>?</div>" });
+ok("assembler: parts spliced at markers", asm.out.includes("AP DESK") && asm.out.includes("INTAKE") && !asm.out.includes("@PART"));
+const shellFx2 = "<html><body><section><!-- @PART:role-x --></section><script>window.SEED={}</script></body></html>";
+const asm2 = assemble(shellFx2, { "role-x": "<div>X</div><script>render(SEED)</script>" });
+ok("assembler: part scripts deferred AFTER the shell script", asm2.deferredScripts === 1 && asm2.out.indexOf("render(SEED)") > asm2.out.indexOf("window.SEED"));
+ok("assembler: reports missing + unused parts", assemble(shellFx, { "role-finance": "x" }).missing.includes("role-requester") && asm.unused.includes("role-extra"));
+
 console.log(`\n${"=".repeat(48)}\n${fail === 0 ? "✅" : "❌"}  ${pass} passed, ${fail} failed\n`);
 process.exit(fail ? 1 : 0);

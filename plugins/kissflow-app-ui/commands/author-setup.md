@@ -6,18 +6,14 @@ argument-hint: (run once in a fresh working folder before authoring)
 Run this **once** in the folder you want to author from. The plugin ships the engine, the reference
 playbooks, and the seed memory inside the installed plugin (`$CLAUDE_PLUGIN_ROOT`); this materializes
 them into your workspace so the `node engine/cli.mjs …` commands resolve and the agents can read the
-playbooks + evolve `MEMORY.md` locally.
+playbooks + evolve `MEMORY.md (canonical — replaced on plugin update) and create an empty MEMORY-LOCAL.md (instance learning; agents write here)` locally.
 
 ## 1. Materialize the engine + playbooks + seed memory
-`$CLAUDE_PLUGIN_ROOT` is often **empty** in the Bash tool env, so self-resolve it: fall back to the
-install cache glob, and error clearly if the engine still isn't found.
+`$CLAUDE_PLUGIN_ROOT` is often **empty** in the Bash tool env, so self-resolve the plugin root from
+the install cache (newest version) before copying, and fail loudly if the engine still isn't found:
 ```bash
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(ls -d ~/.claude/plugins/cache/kissflow/kissflow-app-ui/*/ 2>/dev/null | sort -V | tail -1)}"
-if [ -z "$PLUGIN_ROOT" ] || [ ! -d "$PLUGIN_ROOT/engine" ]; then
-  echo "Could not resolve the plugin root (looked at \$CLAUDE_PLUGIN_ROOT and ~/.claude/plugins/cache/kissflow/kissflow-app-ui/*/)." >&2
-  echo "Locate the installed plugin dir (it contains ./engine) and set CLAUDE_PLUGIN_ROOT to it, then re-run." >&2
-  exit 1
-fi
+[ -d "$PLUGIN_ROOT/engine" ] || { echo "ERROR: plugin root not found (set \$CLAUDE_PLUGIN_ROOT or check ~/.claude/plugins/cache/kissflow/kissflow-app-ui/)"; exit 1; }
 cp -R "$PLUGIN_ROOT/engine" "$PLUGIN_ROOT/reference" "$PLUGIN_ROOT/MEMORY.md" .
 ```
 You now have `./engine` (the deterministic IR→metadata builder + validators + tests), `./reference`

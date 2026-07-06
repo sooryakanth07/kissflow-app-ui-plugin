@@ -59,11 +59,12 @@ tracing to a journey/rule.
 - **Avoid account-global master names** — generic names like `Currency`, `Project`, `Country` collide
   across the whole account (`FlowNameAlreadyExists`) and dangle their referrers. Prefix app masters
   (e.g. `<App> Currency`) or reuse an existing shared dataset deliberately.
-- **Multi-field masters are Forms, NOT `list`/`dataset`** — a `list`/`dataset` stores ONLY a single
-  column of option values (the choices a Select picks from). Any master/reference entity that needs
-  **more than one real field** (e.g. `Category` with name+code, `Supplier` with name+code+contact) MUST
-  be typed as a **Form**. The engine's list builder only stores `ListItems`, so a multi-field
-  `dataset` is silently never applied (produces nothing). When unsure, choose **Form**.
+- **A multi-field master MUST be a Form, never a `list`/`dataset`** — lists/datasets are ONLY
+  single-column option sets (they store just `ListItems`); the engine's apply creates nothing for a
+  multi-field `dataset`-typed flow, so a master with **more than a single option-value column** is
+  **silently never applied**. Any reference/lookup master that needs more than one column (e.g.
+  Category with a description, Supplier with contact/terms) MUST be typed **Form**. Reserve
+  `list`/`dataset` for pure single-value option sets (UoM, Status, Reason). When unsure, use a Form.
 - **Honour the canonical order** in `build_order`; referenced models precede referencing ones.
 - **Dashboards are derived, not authored** — do not invent dashboards here; the experience-designer
   derives them from role × scope × workflow × reports.

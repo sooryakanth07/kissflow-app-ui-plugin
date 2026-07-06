@@ -43,8 +43,20 @@ function crossRefs(blob) {
   return [...refs];
 }
 
+// Flow-type → member-grant contract, single source of truth for both the IR-permission and the
+// page-driven access paths. Board is a Case flow server-side; both use the "case" family and
+// Permission:[] ONLY (Delete is rejected on cases). Getting "Board" wrong here → grants POST to the
+// /form/ endpoint → 404, boards render memberless (hire-onboarding 2026-07-05).
+export function flowGrant(flowType, { editable = true, admin = false } = {}) {
+  const t = flowType || "Form";
+  if (t === "Process") return { family: "process", role: "Member", permission: [] };
+  if (t === "Case" || t === "Board")
+    return { family: "case", role: admin && editable ? "Admin" : editable ? "Member" : "Viewer", permission: [] };
+  return { family: "form", role: editable ? "Member" : "Viewer", permission: editable ? ["Delete"] : [] };
+}
+
 export function clientFromEnv() {
-  // Accept both the engine's KISSFLOW_* names and the UI-tooling KF_* names (inventory/.env).
+  // Accept both the engine's KISSFLOW_* names and the UI-tooling KF_* names (scaffold + .env).
   const env = process.env;
   const acc = env.KISSFLOW_ACCOUNT_ID || env.KF_ACCOUNT_ID;
   const key = env.KISSFLOW_API_KEY || env.KF_ACCESS_KEY_ID;
@@ -84,13 +96,13 @@ export function clientFromEnv() {
       type === "case"
         ? { Name, Description: clampDesc(Description), Prefix: Name.replace(/[^A-Za-z]/g, "").slice(0, 3).toUpperCase() || "CSE", ItemType: "Item" }
         : { Name, Description: clampDesc(Description) }),
-    // Lists don't use the metadata draft/publish path — their option values are saved
-    // via the runtime save-items handler: POST /flow/2/{acc}/list/{id}/items {ListItems:[...]}
-    // (verified live 2026-07-03; wrong shapes 400 "Unknown field", top-level array 403).
-    putListItems: (id, items) => call("POST", `/flow/2/${acc}/list/${id}/items`, { ListItems: items }),
     getDraft: (type, id) => call("GET", `/metadata/2/${acc}/${type}/${id}/draft`),
     putDraft: (type, id, blob) => call("PUT", `/metadata/2/${acc}/${type}/${id}/draft`, blob),
     publish: (type, id) => call("POST", `/metadata/2/${acc}/${type}/${id}/publish`, {}),
+    // Lists don't use the metadata draft/publish path — their option values are saved via the
+    // runtime save-items handler: POST /flow/2/{acc}/list/{id}/items {ListItems:[...]} (verified
+    // live 2026-07-03; wrong shapes 400 "Unknown field", top-level array 403, metadata path 404).
+    putListItems: (id, items) => call("POST", `/flow/2/${acc}/list/${id}/items`, { ListItems: items }),
     // roles associate via BODY _application_id (NOT the query param flows use); list: /app_role/2/{acc}/list?_application_id=
     createRole: (Name, appId) => call("POST", `/app_role/2/${acc}/`, { Name, _application_id: appId }),
     explore: () => call("GET", `/flow/2/${acc}/explore`),
@@ -109,7 +121,19 @@ function remap(blob, genToServer) {
   return JSON.parse(s);
 }
 
-const log = (...a) => console.log("  ", ...a);
+const log = (...a) => console.log(new Date().toISOString().slice(11, 19), " ", ...a); // timestamped — enables per-phase timing analysis of an apply
+
+// bounded-concurrency map: apply phases are dominated by API round-trips on INDEPENDENT artifacts —
+// measured on the P2P build (2026-07-03): shells 9s, bodies 14s, permissions 35s, all serial.
+// Runs fn over items with at most `limit` in flight, preserving result order.
+async function pMap(items, limit, fn) {
+  const out = new Array(items.length); let i = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (i < items.length) { const idx = i++; out[idx] = await fn(items[idx], idx); }
+  });
+  await Promise.all(workers);
+  return out;
+}
 
 /**
  * Two-pass live apply of an IR. Returns a report.
@@ -150,6 +174,15 @@ export async function applyIR(ir, opts = {}) {
   // use generated role ids (eid("Ro", name)); remap them to the real server role ids.
   const genToServer = {}; const flowMeta = []; const liveIds = new Set();
   for (const r of report.roles) if (r.id) genToServer[eid("Ro", r.name)] = r.id;
+  // ALSO map the IR-PROVIDED role ids (kf-architect assigns e.g. "role-dept-head") → server id, by
+  // name. buildApp puts `r.id || eid("Ro",name)` into workflow-step assignees (Resource.Value); when
+  // the IR carries explicit role ids, ONLY this form appears there, and without this mapping it never
+  // remaps → published process has an unresolvable assignee → 400 "no assignee for next step"
+  // (hire-onboarding 2026-07-05: all 6 process journeys dead at step 2).
+  {
+    const serverRoleByName = {}; for (const r of report.roles) if (r.id) serverRoleByName[r.name] = r.id;
+    for (const r of ir.roles || []) if (r.id && serverRoleByName[r.name] && r.id !== serverRoleByName[r.name]) genToServer[r.id] = serverRoleByName[r.name];
+  }
   if (opts.reuse?.genToServer) {
     // INCREMENTAL: flows already exist — use the supplied gen→server map (never the ambiguous explore).
     Object.assign(genToServer, opts.reuse.genToServer);
@@ -166,7 +199,7 @@ export async function applyIR(ir, opts = {}) {
   // PASS 1 — create shells for lists + flows, capturing server ids (reuse/prefix on name collision).
   const appPrefix = (ir.app?.name || "App").split(/\s+/).filter(Boolean).slice(0, 2).join(" ");
   const accept = (a, serverId, note) => { genToServer[a.id] = serverId; liveIds.add(serverId); report.created.push({ type: a.type, gen: a.id, server: serverId, ...(note || {}) }); if (a.blob) flowMeta.push({ type: a.type, gen: a.id, server: serverId }); };
-  for (const a of artifacts.filter((x) => ["list", "form", "process", "case"].includes(x.type))) {
+  await pMap(artifacts.filter((x) => ["list", "form", "process", "case"].includes(x.type)), 5, async (a) => {
     const name = a.shell?.Name || a.doc?.Name || a.id;
     const cr = await c.createFlow(a.type, name, appId, a.shell?.Description || "");
     let serverId = cr.body?._id;
@@ -174,7 +207,7 @@ export async function applyIR(ir, opts = {}) {
       if (cr.body?.type === "FlowNameAlreadyExists" && idByName.has(name)) {
         accept(a, idByName.get(name), { reused: true });
         log(`shell ${a.type} ${a.id} → ${idByName.get(name)} (reused existing)`);
-        continue;
+        return;
       }
       // account-global name (e.g. "Currency", "Project") we don't own — retry app-scoped/prefixed so
       // it's a NEW flow of ours; refs resolve via gen→server, so only the display Name changes.
@@ -184,20 +217,20 @@ export async function applyIR(ir, opts = {}) {
         if (cr2.status < 300 && cr2.body?._id) {
           accept(a, cr2.body._id, { renamed: alt });
           log(`shell ${a.type} ${a.id} → ${cr2.body._id} (renamed "${alt}" — global name "${name}" was taken)`);
-          continue;
+          return;
         }
       }
       report.errors.push(`${a.type} ${a.id} create failed: ${cr.status} ${JSON.stringify(cr.body).slice(0, 80)}`);
-      continue;
+      return;
     }
     accept(a, serverId);
     log(`shell ${a.type} ${a.id} → ${serverId}`);
-  }
+  });
 
-  // PASS 1b — list items: lists are created as shells in PASS 1 but carry no blob, so they
-  // are skipped by the body pass. Their option values live in the artifact `.doc.ListItems`
-  // and must be saved via the runtime save-items handler, or every Select backed by the list
-  // is empty (required Selects then become unsatisfiable — no record can be created).
+  // PASS 1b — list items: lists are created as shells in PASS 1 but carry no blob (skipped by the
+  // body pass). Their option values live in the artifact `.doc.ListItems` and must be saved via the
+  // runtime save-items handler, or every Select backed by the list is empty (required Selects then
+  // become unsatisfiable — no record can be created, even by a real user in the Kissflow UI).
   for (const a of artifacts.filter((x) => x.type === "list")) {
     const server = genToServer[a.id];
     const items = a.doc?.ListItems || a.shell?.ListItems;
@@ -208,11 +241,12 @@ export async function applyIR(ir, opts = {}) {
     log(`list-items ${server} → ${li.status} (${items.length})`);
   }
 
-  // PASS 2 — bodies: graft remapped blob onto the server starter draft, then publish
-  for (const fm of flowMeta) {
+  // PASS 2 — bodies: graft remapped blob onto the server starter draft, then publish.
+  // Parallel (4-wide): flows are independent; genToServer/liveIds are complete after the PASS-1 barrier.
+  await pMap(flowMeta, 4, async (fm) => {
     const my = artifacts.find((x) => x.id === fm.gen);
     const starter = await c.getDraft(fm.type, fm.server);
-    if (starter.status >= 300) { report.errors.push(`getDraft ${fm.server} → ${starter.status}`); continue; }
+    if (starter.status >= 300) { report.errors.push(`getDraft ${fm.server} → ${starter.status}`); return; }
     const remapped = remap(my.blob, genToServer);
     const merged = { ...starter.body };
     for (const [k, v] of Object.entries(remapped)) {
@@ -226,13 +260,37 @@ export async function applyIR(ir, opts = {}) {
     if (within.length || dangling.length) {
       report.errors.push(`${fm.server}: not published — ${within.map((i) => i.code).join(",")}${dangling.length ? " dangling cross-ref(s): " + dangling.join(", ") : ""}`);
       log(`body ${fm.server} → SKIPPED (invalid: ${within.length} structural, ${dangling.length} dangling refs: ${dangling.join(",")})`);
-      continue;
+      return;
     }
     const pd = await c.putDraft(fm.type, fm.server, merged);
     const pub = pd.status < 300 ? await c.publish(fm.type, fm.server) : { status: -1 };
     if (pub.status < 300) report.published.push(fm.server);
     else report.errors.push(`${fm.type} ${fm.server}: draft=${pd.status} publish=${pub.status} ${JSON.stringify(pd.status >= 300 ? pd.body : pub.body).slice(0, 300)}`);
     log(`body ${fm.server} → draft ${pd.status}, publish ${pub.status}`);
+  });
+
+  // PASS 2.5 — CASEFLOW STATUSES for board flows. buildBoard emits a separate `caseflow` artifact
+  // (the designed lifecycle statuses); the case's model publish above does NOT carry them, so without
+  // this the board keeps the default New/In-progress/Closed and every designed status is unreachable
+  // (hire-onboarding 2026-07-05: all 6 board journeys blocked). Swap statuses on the case's caseflow
+  // draft, mirroring applyBoardLive. Runs after the model is published (statuses reference the model).
+  for (const cf of artifacts.filter((a) => a.type === "caseflow")) {
+    const caseServer = genToServer[cf.parentModel];
+    if (!caseServer) { report.errors.push(`caseflow ${cf.id}: parent case ${cf.parentModel} not created`); continue; }
+    const meta = await c.call("GET", `/flow/2/${acc}/case/${caseServer}?_application_id=${appId}`);
+    const cfId = meta.body?._default_workflow_id;
+    if (!cfId) { report.errors.push(`caseflow ${cf.id}: no _default_workflow_id on ${caseServer}`); continue; }
+    const cfd = (await c.call("GET", `/metadata/2/${acc}/case/${caseServer}/caseflow/${cfId}/draft`)).body;
+    if (!cfd?.Root) { report.errors.push(`caseflow ${caseServer}: draft unreadable`); continue; }
+    const remapped = remap(cf.blob, genToServer);
+    const scf = cfd[cfd.Root], mye = remapped[remapped.Root];
+    for (const id of [...(scf["CaseFlow::Status"] || []), ...(scf["CaseFlow::State"] || [])]) delete cfd[id];
+    for (const id of [...(mye["CaseFlow::Status"] || []), ...(mye["CaseFlow::State"] || [])]) cfd[id] = remapped[id];
+    scf["CaseFlow::Status"] = mye["CaseFlow::Status"] || []; scf["CaseFlow::State"] = mye["CaseFlow::State"] || [];
+    const pd = await c.call("PUT", `/metadata/2/${acc}/case/${caseServer}/caseflow/${cfId}/draft`, cfd);
+    const pub = pd.status < 300 ? await c.call("POST", `/metadata/2/${acc}/case/${caseServer}/caseflow/${cfId}/publish`, {}) : { status: -1 };
+    log(`caseflow ${caseServer} → statuses ${(mye["CaseFlow::Status"] || []).length}, draft ${pd.status}, publish ${pub.status}`);
+    if (pub.status >= 300) report.errors.push(`caseflow ${caseServer}: draft=${pd.status} publish=${pub.status}`);
   }
   } // end flow create/push (skipped in reuse mode)
 
@@ -278,38 +336,47 @@ export async function applyIR(ir, opts = {}) {
   // InitiateItems+Delete (can raise + manage requests); forms get Delete (full access).
   const roleIdByName = {};
   for (const r of report.roles) if (r.id) roleIdByName[r.name] = r.id;
-  const fam = (t) => (t === "Process" ? "process" : t === "Case" ? "case" : "form");
+  // Case AND Board classify as the "case" family server-side (Board is a Case flow with a Kanban
+   // view). Missing "Board" here → grants POST to /form/… → 404, and the board renders with zero
+   // members (hire-onboarding 2026-07-05). Boards additionally need Permission:[] (Delete rejected).
+  const fam = (t) => (t === "Process" ? "process" : (t === "Case" || t === "Board") ? "case" : "form");
   report.members = [];
-  for (const perm of ir.permissions || []) {
+  // report lists were re-fetched for EVERY role×flow pair (measured: 3× per flow on P2P) — cache per flow
+  const reportListCache = new Map();
+  const reportsOf = async (fam2, serverFlow) => {
+    if (!reportListCache.has(serverFlow)) {
+      const r = await c.call("GET", `/flow/2/${acc}/${fam2}/${serverFlow}/report?_application_id=${appId}`);
+      reportListCache.set(serverFlow, Array.isArray(r.body) ? r.body : []);
+    }
+    return reportListCache.get(serverFlow);
+  };
+  await pMap(ir.permissions || [], 5, async (perm) => {
     const roleId = roleIdByName[perm.role];
     const fSpec = (ir.forms || []).find((f) => (f.id || f.name) === perm.model);
     const serverFlow = fSpec && genToServer[fSpec.id || `${slug(fSpec.name)}_A00`];
-    if (!roleId || !serverFlow) continue;
+    if (!roleId || !serverFlow) return;
     const ft = fSpec.flowType || "Form";
     // member object MUST carry _application_id in the body (not just the query param), and Role is
     // Member (edit) or Viewer (read). Valid permissions by flow type: Process → InitiateItems|View;
     // Form → Delete|View.
     const editable = (perm.level || "Editable") !== "ReadOnly";
-    // Access LEVELS verified against the "Manage permissions" UI's own calls:
-    //   Process: "Initiate" = Role:Member, Permission:[]  (No access = not a member; Manage = higher)
-    //   Form:    Member+["Delete"] (edit) / Viewer (read)
+    // Case/Board owner (sole mover / coordinator) → Admin; see flowGrant + security slice intent.
+    const admin = /admin|owner|sole mover|coordinat/i.test(perm.intent || "");
     // What makes a table/list COMPONENT render data is the flow's REPORT access, granted below.
-    const role = ft === "Process" ? "Member" : (editable ? "Member" : "Viewer");
-    const perms = ft === "Process" ? [] : (editable ? ["Delete"] : []);
-    const member = { _id: roleId, Name: perm.role, _application_id: appId, Role: role, Permission: perms, Kind: "AppRole" };
-    const m = await c.call("POST", `/flow/2/${acc}/${fam(ft)}/${serverFlow}/member/batch?_application_id=${appId}`, [member]);
+    const g = flowGrant(ft, { editable, admin });
+    const member = { _id: roleId, Name: perm.role, _application_id: appId, Role: g.role, Permission: g.permission, Kind: "AppRole" };
+    const m = await c.call("POST", `/flow/2/${acc}/${g.family}/${serverFlow}/member/batch?_application_id=${appId}`, [member]);
     report.members.push({ role: perm.role, model: perm.model, status: m.status });
-    log(`access ${perm.role} → ${perm.model} (${fam(ft)}) ${m.status}`);
+    log(`access ${perm.role} → ${perm.model} (${g.family}) ${m.status}`);
     // REPORT "View report" access — THIS is what makes a table/list component render data.
     // Verified from the UI: Role:Member, Permission:["View"] (= "View report"; [] = No access,
     // "ManageReports" → UnsupportedPermissionError). Reports accept Role "Member"/"Admin" only.
-    const reports = await c.call("GET", `/flow/2/${acc}/${fam(ft)}/${serverFlow}/report?_application_id=${appId}`);
-    for (const rep of (Array.isArray(reports.body) ? reports.body : [])) {
-      const rm = await c.call("POST", `/flow/2/${acc}/${fam(ft)}/${serverFlow}/report/${rep._id}/member/batch?_application_id=${appId}`,
+    for (const rep of await reportsOf(g.family, serverFlow)) {
+      const rm = await c.call("POST", `/flow/2/${acc}/${g.family}/${serverFlow}/report/${rep._id}/member/batch?_application_id=${appId}`,
         [{ _id: roleId, Name: perm.role, _application_id: appId, Role: "Member", Permission: ["View"], Kind: "AppRole" }]);
       if (rm.status < 300) log(`  report ${rep.Name} → ${perm.role} View report`);
     }
-  }
+  });
 
   // NAV + ROLE PREFERENCE — the trifecta that makes a role actually see its app. Without the
   // role's Preference{DefaultPage,DefaultNavigation} the role renders BLANK regardless of access.
@@ -334,8 +401,9 @@ export async function applyIR(ir, opts = {}) {
       for (const fn of w.flows) {
         const f = flowServerByName[fn]; if (!f) continue;
         const key = role + "::" + f.id; if (doneAcc.has(key)) continue; doneAcc.add(key);
-        const fm = f.type === "Process" ? "process" : "form";
-        const perms = f.type === "Process" ? [] : ["Delete"]; // Process Initiate=[] ; Form edit=["Delete"]
+        const fCase = f.type === "Case" || f.type === "Board";
+        const fm = f.type === "Process" ? "process" : fCase ? "case" : "form";
+        const perms = (f.type === "Process" || fCase) ? [] : ["Delete"]; // Process Initiate/Case member=[] ; Form edit=["Delete"]
         await c.call("POST", `/flow/2/${acc}/${fm}/${f.id}/member/batch?_application_id=${appId}`, [{ _id: role, Name: w.role, _application_id: appId, Role: "Member", Permission: perms, Kind: "AppRole" }]);
         // report "View report" (Permission:["View"]) — required for the page's table to show data
         const reps = await c.call("GET", `/flow/2/${acc}/${fm}/${f.id}/report?_application_id=${appId}`);
@@ -426,7 +494,11 @@ export async function applyIR(ir, opts = {}) {
         if (!server) continue;
         flows[key] = { id: server, display: f.name, fields: (f.fields || []).map((x) => ({ id: x.id || slug(x.name), name: x.name, type: x.type })) };
       }
-      ictx = { flows, connectors, connections: connections && Object.keys(connections).some((k) => !k.startsWith("_")) ? connections : undefined };
+      // flowTypeOf: resolveSkeleton keys the CONNECTOR off the flow's type (Board/Case → Kissflow Board
+      // connector, Process → Kissflow Process). Without it everything defaulted to Process — a create into
+      // a Board target would wire CreateAndSubmitItem on the WRONG connector (hire-onboarding AR-8, 2026-07-05).
+      const flowTypeOf = (ref) => { const f = (ir.forms || []).find((x) => (x.id || x.name) === ref || x.name === ref || x.id === ref); return f?.flowType || "Process"; };
+      ictx = { flows, connectors, flowTypeOf, connections: connections && Object.keys(connections).some((k) => !k.startsWith("_")) ? connections : undefined };
     } catch (e) { log(`automations: connector resolution failed (${String(e.message || e).slice(0, 80)}) — all deferred to builder`); }
     const existing = await c.call("GET", `/flow/2/${acc}/integration?_application_id=${appId}`);
     const existingByName = new Map((Array.isArray(existing.body) ? existing.body : existing.body?.Data || []).map((i) => [i.Name, i._id]));

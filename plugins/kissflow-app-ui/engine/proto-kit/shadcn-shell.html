@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>@APP_TITLE — Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+/* shadcn/ui token bridge for the Tailwind CDN — components use shadcn class conventions
+   (bg-card, text-muted-foreground, border-border, bg-primary …) exactly as Lovable emits them. */
+tailwind.config = { theme: { extend: {
+  fontFamily: { sans: ["Inter", "ui-sans-serif", "system-ui"] },
+  colors: {
+    border: "hsl(var(--border))", input: "hsl(var(--input))", ring: "hsl(var(--ring))",
+    background: "hsl(var(--background))", foreground: "hsl(var(--foreground))",
+    primary: { DEFAULT: "hsl(var(--primary))", foreground: "hsl(var(--primary-foreground))" },
+    secondary: { DEFAULT: "hsl(var(--secondary))", foreground: "hsl(var(--secondary-foreground))" },
+    muted: { DEFAULT: "hsl(var(--muted))", foreground: "hsl(var(--muted-foreground))" },
+    accent: { DEFAULT: "hsl(var(--accent))", foreground: "hsl(var(--accent-foreground))" },
+    card: { DEFAULT: "hsl(var(--card))", foreground: "hsl(var(--card-foreground))" },
+    destructive: { DEFAULT: "hsl(var(--destructive))", foreground: "hsl(var(--destructive-foreground))" },
+    success: { DEFAULT: "hsl(var(--success))", foreground: "hsl(var(--success-foreground))" },
+    warning: { DEFAULT: "hsl(var(--warning))", foreground: "hsl(var(--warning-foreground))" },
+    sidebar: { DEFAULT: "hsl(var(--sidebar))", foreground: "hsl(var(--sidebar-foreground))", muted: "hsl(var(--sidebar-muted))", border: "hsl(var(--sidebar-border))", accent: "hsl(var(--sidebar-accent))" },
+  },
+  borderRadius: { lg: "var(--radius)", md: "calc(var(--radius) - 4px)", sm: "calc(var(--radius) - 8px)" },
+}}};
+</script>
+<style type="text/tailwindcss">
+/* ── THEME: "Lovable violet" — light, soft, rounded; shadcn token set ── */
+:root {
+  --background: 240 20% 99%; --foreground: 240 10% 10%;
+  --card: 0 0% 100%; --card-foreground: 240 10% 10%;
+  --muted: 240 5% 96%; --muted-foreground: 240 4% 46%;
+  --secondary: 240 5% 96%; --secondary-foreground: 240 6% 20%;
+  --accent: 254 90% 96%; --accent-foreground: 258 70% 40%;
+  --primary: 258 84% 58%; --primary-foreground: 0 0% 100%;
+  --destructive: 0 74% 54%; --destructive-foreground: 0 0% 100%;
+  --success: 152 62% 38%; --success-foreground: 0 0% 100%;
+  --warning: 36 92% 44%; --warning-foreground: 0 0% 100%;
+  --border: 240 6% 90%; --input: 240 6% 90%; --ring: 258 84% 58%;
+  --radius: 0.75rem;
+  /* sidebar rail: modern dark (deep zinc, violet active) against the light content surface */
+  --sidebar: 240 9% 9%; --sidebar-foreground: 240 10% 96%;
+  --sidebar-muted: 240 6% 62%; --sidebar-border: 240 6% 17%;
+  --sidebar-accent: 258 84% 62%;
+}
+body { @apply bg-background text-foreground font-sans antialiased; font-size: 14.5px; }
+/* component recipes shared by every role part (chart primitives Tailwind can't express) */
+.kit-spark path { fill: none; stroke: hsl(var(--primary)); stroke-width: 2; }
+.kit-spark .area { fill: hsl(var(--primary) / 0.12); stroke: none; }
+.kit-bar { fill: hsl(var(--primary)); rx: 3; }
+.kit-bar.alt { fill: hsl(var(--primary) / 0.35); }
+.kit-donut-track { stroke: hsl(var(--muted)); }
+::-webkit-scrollbar { height: 8px; width: 8px; } ::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 4px; }
+.roleview { display: none; } .roleview.active { display: block; }
+</style>
+</head>
+<body>
+<div class="flex min-h-screen">
+  <!-- Sidebar (modern dark rail against the light content surface) -->
+  <aside class="w-60 shrink-0 border-r border-sidebar-border bg-sidebar text-sidebar-foreground flex flex-col">
+    <div class="flex items-center gap-2.5 px-5 h-16 border-b border-sidebar-border">
+      <div class="h-9 w-9 rounded-lg bg-primary text-primary-foreground grid place-items-center font-bold text-sm shadow-sm">@APP_MARK</div>
+      <div><div class="font-semibold leading-tight">@APP_TITLE</div><div class="text-xs text-sidebar-muted">@APP_SUB</div></div>
+    </div>
+    <nav id="sidenav" class="flex-1 overflow-y-auto p-3 space-y-1 text-sm"><!-- populated per role by switchRole() from window.NAV --></nav>
+    <div class="p-4 border-t border-sidebar-border text-xs text-sidebar-muted">Clickable prototype · seed-data driven</div>
+  </aside>
+  <!-- Main -->
+  <div class="flex-1 min-w-0 flex flex-col">
+    <header class="h-16 shrink-0 border-b border-border bg-card/80 backdrop-blur flex items-center gap-4 px-6 sticky top-0 z-30">
+      <div class="min-w-0"><div class="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase" id="crumb">@APP_TITLE</div><h1 class="text-[17px] font-bold leading-tight" id="pagetitle">Home</h1></div>
+      <div class="ml-auto flex items-center gap-1 rounded-lg border border-border bg-muted p-1" id="roleswitch"><!-- populated from window.ROLES --></div>
+      <div class="flex items-center gap-2.5 pl-3 border-l border-border">
+        <div id="personaavatar" class="h-9 w-9 rounded-full grid place-items-center text-xs font-bold text-white bg-primary"></div>
+        <div class="leading-tight hidden md:block"><div class="text-sm font-semibold" id="personaname"></div><div class="text-xs text-muted-foreground" id="personarole"></div></div>
+      </div>
+    </header>
+    <main class="flex-1 min-w-0 p-6 lg:p-8">
+      <!-- @ROLE_SECTIONS -->
+    </main>
+  </div>
+</div>
+<!-- Dialog (shadcn-style) + Toast -->
+<div id="kitoverlay" class="fixed inset-0 z-40 bg-foreground/40 backdrop-blur-[2px] hidden" onclick="if(event.target===this)closePopup()">
+  <div id="kitpopup" class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(560px,92vw)] max-h-[85vh] overflow-y-auto rounded-lg border border-border bg-card shadow-2xl p-6"></div>
+</div>
+<div id="kittoast" class="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 rounded-lg border border-border bg-card px-4 py-3 shadow-lg text-sm font-medium opacity-0 translate-y-2 transition pointer-events-none">
+  <span class="h-5 w-5 rounded-full bg-success text-success-foreground grid place-items-center text-[10px]">✓</span><span id="kittoastmsg">Saved</span>
+</div>
+<script>
+/* ── SEED + helpers (injected per app) ── */
+<!-- @PART:seed -->
+/* ── switcher: window.ROLES = [{slug,name,title,persona:{name,role,initials,color},nav:[{id,label,icon}]}] ── */
+(function () {
+  const rs = document.getElementById("roleswitch"), nav = document.getElementById("sidenav");
+  window.switchRole = function (slug) {
+    slug = String(slug).toLowerCase();
+    const R = window.ROLES.find((r) => r.slug === slug) || window.ROLES[0];
+    document.querySelectorAll(".roleview").forEach((v) => v.classList.toggle("active", v.id === "rv-" + R.slug));
+    rs.querySelectorAll("button").forEach((b) => {
+      const on = b.dataset.slug === R.slug;
+      b.className = "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition " + (on ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground");
+    });
+    document.getElementById("personaname").textContent = R.persona.name;
+    document.getElementById("personarole").textContent = R.persona.role;
+    const av = document.getElementById("personaavatar"); av.textContent = R.persona.initials; av.style.background = R.persona.color;
+    document.getElementById("pagetitle").textContent = R.title;
+    const NAV_ON = "bg-primary text-primary-foreground shadow-sm", NAV_OFF = "text-sidebar-muted hover:bg-white/5 hover:text-sidebar-foreground";
+    nav.innerHTML = `<div class="px-2 pb-1 pt-2 text-[10.5px] font-bold tracking-widest uppercase text-sidebar-muted">${R.name} workspace</div>` +
+      R.nav.map((n, i) => `<a href="#" data-nav="${n.id}" class="navitem flex items-center gap-2.5 rounded-md px-3 py-2 font-medium ${i === 0 ? NAV_ON : NAV_OFF}">${window.ICON && n.icon ? ICON(n.icon, "h-4 w-4 shrink-0") : ""}${n.label}</a>`).join("");
+    const showPage = (navId) => { // parts wrap each nav page in <div data-page="<navId>">
+      document.getElementById("rv-" + R.slug).querySelectorAll("[data-page]").forEach((p) => p.classList.toggle("hidden", p.dataset.page !== navId));
+      const n = R.nav.find((x) => x.id === navId);
+      document.getElementById("pagetitle").textContent = (n && n.label) || R.title;
+      if (window.PAGES && window.PAGES[navId]) window.PAGES[navId]();
+    };
+    nav.querySelectorAll("[data-nav]").forEach((a) => a.addEventListener("click", (ev) => { ev.preventDefault();
+      nav.querySelectorAll(".navitem").forEach((x) => x.className = x.className.replace(NAV_ON, NAV_OFF));
+      a.className = a.className.replace(NAV_OFF, NAV_ON);
+      showPage(a.dataset.nav);
+    }));
+    showPage(R.nav[0].id);
+    if (window.onRoleChange) window.onRoleChange(R.slug);
+  };
+  rs.innerHTML = window.ROLES.map((r) => `<button data-slug="${r.slug}"><span class="h-4 w-4 rounded-full grid place-items-center text-[8px] font-bold text-white" style="background:${r.persona.color}">${r.name[0]}</span>${r.name}</button>`).join("");
+  rs.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => switchRole(b.dataset.slug)));
+  switchRole(window.ROLES[0].slug);
+})();
+window.openPopup = function (html) { document.getElementById("kitpopup").innerHTML = html; document.getElementById("kitoverlay").classList.remove("hidden"); };
+window.closePopup = function () { document.getElementById("kitoverlay").classList.add("hidden"); };
+window.showToast = function (msg) {
+  const t = document.getElementById("kittoast"); document.getElementById("kittoastmsg").textContent = msg || "Saved";
+  t.classList.remove("opacity-0", "translate-y-2"); clearTimeout(window.__toastT);
+  window.__toastT = setTimeout(() => t.classList.add("opacity-0", "translate-y-2"), 2600);
+};
+</script>
+</body>
+</html>

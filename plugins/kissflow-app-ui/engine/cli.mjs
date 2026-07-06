@@ -5,21 +5,19 @@
 //   node cli.mjs build    <ir.json> [--out d]— compile IR → metadata blobs (DRY-RUN: writes to d/)
 //   node cli.mjs check    <appExportDir>     — run validators over a real export folder
 //   node cli.mjs import   <appExportDir>     — load an export → (partial) IR-ish summary
-//   node cli.mjs resolve-experience <experience-spec.json> <kf-schema.json> [--out lib/ui-spec.json]
-//                                             — resolve a semantic Experience Spec + kf-schema → ui-spec.json
-//   node cli.mjs build <ir.json> --no-pages   — CUSTOM-UI build: app + models + roles + workflows, NO native pages/nav
-//   node cli.mjs deploy-ui <zipPath> --app <appId> [--name "App UI"] [--url <devUrl>]
-//                                             — deploy the built React zip (or dev URL) as the app's Application
-//                                               custom component + enable Custom UI (reuses clientFromEnv)
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { validateIR, checkCoherenceIR } from "./ir.mjs";
 import { ensureExperience } from "./experience.mjs";
 import { buildApp } from "./builders.mjs";
+import { stamp as tlStamp } from "./timeline.mjs";
+import { dirname as tlDirname } from "node:path";
+// auto-timing: every verify/build/apply stamps the run's timeline.jsonl (actor = $KF_ACTOR or "engine");
+// failures are silent — instrumentation never breaks the pipeline.
+const tl = (irPath, step, ev) => { try { tlStamp(tlDirname(irPath), process.env.KF_ACTOR || "engine", step, ev); } catch { /* never fatal */ } };
 import { loadApp, allBlobs } from "./loader.mjs";
 import { validateBlob, errors, warnings } from "./validators.mjs";
-import { resolveExperience } from "./resolve.mjs";
 
 // Minimal, zero-dep .env loader — the engine reads process.env but nothing populates it.
 // Loads (cwd) .env then inventory/.env; already-set real env vars always win.
@@ -51,26 +49,27 @@ if (!cmd || cmd === "help") {
 
 try {
   if (cmd === "validate" || cmd === "verify") {
+    tl(arg, cmd, "start");
     const ir = readJson(arg);
     const res = validateIR(ir);
     const issues = cmd === "verify" ? [...res.issues, ...checkCoherenceIR(ir)] : res.issues;
     console.log(`\nIR: ${ir.app?.name || "(unnamed)"}`);
     report(issues);
+    tl(arg, cmd, "end");
     process.exit(errors(issues).length ? 1 : 0);
   }
 
   if (cmd === "build") {
+    tl(arg, "build", "start");
     const ir = readJson(arg);
     // --no-pages: CUSTOM-UI mode — build app + models + roles + workflows WITHOUT native pages/nav.
-    // Skip the experience layer entirely and strip any authored pages so NO page/ artifacts emit.
-    const noPages = hasFlag("--no-pages");
-    if (noPages) { ir.pages = []; console.log("no-pages: skipping experience layer — no native pages/nav will be built"); }
+    if (hasFlag("--no-pages")) { ir.pages = []; console.log("no-pages: skipping experience layer — no native pages/nav will be built"); }
     else {
       const exp = ensureExperience(ir); // GUARANTEE: every build has pages + nav + role landings
       if (exp.added.length) console.log(`experience: auto-added baseline (${exp.added.length}) — ${exp.added.join(", ")}\n(design richer pages via kf-experience-designer to override)`);
     }
     const v = validateIR(ir);
-    if (!v.ok) { console.log("IR invalid — fix before building:"); report(v.issues); process.exit(1); }
+    if (!v.ok) { console.log("IR invalid — fix before building:"); report(v.issues); tl(arg, "build", "end"), process.exit(1); }
     const { appId, artifacts } = buildApp(ir);
     const out = flag("--out", join(process.cwd(), "kf-build-out"));
     mkdirSync(out, { recursive: true });
@@ -89,21 +88,20 @@ try {
     console.log("\nvalidation of generated metadata:");
     report(issues);
     console.log("\n(use --apply --target <env> to publish — gated; not implemented in dry-run build)");
-    process.exit(errors(issues).length ? 1 : 0);
+    tl(arg, "build", "end"), process.exit(errors(issues).length ? 1 : 0);
   }
 
   if (cmd === "apply") {
+    tl(arg, "apply", "start");
     const ir = readJson(arg);
-    // --no-pages: CUSTOM-UI mode — apply app + models + roles + workflows only. Skip the experience
-    // layer and drop all pages so applyIR creates NO native pages/nav (the custom React UI drives the app).
-    const noPages = hasFlag("--no-pages");
-    if (noPages) { ir.pages = []; console.log("no-pages: skipping experience layer — no native pages/nav will be applied"); }
+    // --no-pages: CUSTOM-UI mode — apply app + models + roles + workflows only. Skip the experience layer.
+    if (hasFlag("--no-pages")) { ir.pages = []; console.log("no-pages: skipping experience layer — no native pages/nav will be applied"); }
     else {
       const exp = ensureExperience(ir); // GUARANTEE: every applied app has pages + nav + role landings
       if (exp.added.length) console.log(`experience: auto-added baseline (${exp.added.length}) — ${exp.added.join(", ")}`);
     }
     const v = validateIR(ir);
-    if (!v.ok) { console.log("IR invalid — fix before applying:"); report(v.issues); process.exit(1); }
+    if (!v.ok) { console.log("IR invalid — fix before applying:"); report(v.issues); tl(arg, "apply", "end"), process.exit(1); }
     const { applyIR } = await import("./client.mjs");
     console.log(`\nAPPLY (LIVE) — ${ir.app?.name} → ${(process.env.KISSFLOW_DOMAIN || process.env.KF_DOMAIN) || `${process.env.KISSFLOW_SUBDOMAIN}.kissflow.com`}`);
     const rep = await applyIR(ir);
@@ -114,7 +112,21 @@ try {
     console.log(`verified nested in app: ${rep.verified.nestedInApp}`);
     if (rep.verified.flows) console.log(`  ${rep.verified.flows.join(", ")}`);
     if (rep.errors.length) { console.log("errors:"); rep.errors.forEach((e) => console.log("  ✗ " + e)); }
-    process.exit(rep.errors.length ? 1 : 0);
+    tl(arg, "apply", "end"), process.exit(rep.errors.length ? 1 : 0);
+  }
+
+  if (cmd === "check" || cmd === "import") {
+    if (!existsSync(arg)) { console.log(`no such folder: ${arg}`); process.exit(1); }
+    const app = loadApp(arg);
+    const blobs = allBlobs(app);
+    console.log(`\n${arg}: ${app.forms.length} forms, ${app.cases.length} cases, ${app.processes.length} processes, ${app.pages.length} pages, ${app.lists.length} lists, ${blobs.length} blobs`);
+    if (cmd === "check") {
+      let issues = [];
+      for (const b of blobs) issues = issues.concat(validateBlob(b));
+      report(issues);
+      process.exit(errors(issues).length ? 1 : 0);
+    }
+    process.exit(0);
   }
 
   if (cmd === "resolve-experience") {
@@ -123,15 +135,13 @@ try {
       console.error("usage: node cli.mjs resolve-experience <experience-spec.json> <kf-schema.json> [--out lib/ui-spec.json]");
       process.exit(1);
     }
+    const { resolveExperience } = await import("./resolve.mjs");
     const experienceSpec = readJson(expPath);
     const kfSchema = readJson(schemaPath);
     const { uiSpec, warnings: warns } = resolveExperience(experienceSpec, kfSchema);
-
     const out = flag("--out", join(process.cwd(), "lib/ui-spec.json"));
     mkdirSync(dirname(out), { recursive: true });
     writeFileSync(out, JSON.stringify(uiSpec, null, 2));
-
-    // summary → stdout.
     const widgetCount = uiSpec.pages.reduce((n, p) => n + p.widgets.length, 0);
     const droppedWidgets = warns.filter((w) => w.widget).length;
     const droppedPages = warns.filter((w) => w.page && !w.widget).length;
@@ -140,8 +150,6 @@ try {
     console.log(`  roles:   ${uiSpec.roles.length}`);
     console.log(`  pages:   ${uiSpec.pages.length} resolved${droppedPages ? `, ${droppedPages} dropped` : ""}`);
     console.log(`  widgets: ${widgetCount} resolved${droppedWidgets ? `, ${droppedWidgets} dropped` : ""}`);
-
-    // warnings → stderr (never fabricate: dropped binds are surfaced, not hidden).
     if (warns.length) {
       console.error(`\n${warns.length} warning(s):`);
       for (const w of warns) console.error(`  • ${w.page ? `[${w.page}] ` : ""}${w.widget ? `"${w.widget}": ` : ""}${w.reason}`);
@@ -162,7 +170,7 @@ try {
       console.error("usage: node cli.mjs deploy-ui <zipPath> --app <appId> [--name \"App UI\"] [--url <devUrl>]");
       console.error("  ZIP mode : node cli.mjs deploy-ui dist/app-ui.zip --app APP123   (upload+trigger+poll — blob upload is TODO(live-verify))");
       console.error("  URL mode : node cli.mjs deploy-ui --app APP123 --url https://dev.example.com/app-ui   (simple, reliable — no blob upload)");
-      console.error("  requires env: KISSFLOW_SUBDOMAIN/ACCOUNT_ID/API_KEY/API_SECRET");
+      console.error("  requires env: KISSFLOW_ACCOUNT_ID/API_KEY/API_SECRET (or KF_*) + KISSFLOW_DOMAIN/KF_DOMAIN");
       process.exit(1);
     }
     const { deployUI } = await import("./deploy-ui.mjs");
@@ -171,23 +179,7 @@ try {
     console.log("\n=== DEPLOY-UI REPORT ===");
     console.log(`component id: ${rep.componentId}`);
     console.log(`mode: ${rep.mode}`);
-    if (rep.mode === "url") console.log("  live-verified: list/create/manifest-url/publish/delete-stale/enable-flag (URL mode is the reliable path)");
-    else console.log("  live-verified: list/create/trigger/poll/publish/delete-stale/enable-flag · TODO(live-verify): the blob-upload endpoint+payload");
     if (rep.warnings.length) { console.log("warnings:"); rep.warnings.forEach((w) => console.log("  • " + w)); }
-    process.exit(0);
-  }
-
-  if (cmd === "check" || cmd === "import") {
-    if (!existsSync(arg)) { console.log(`no such folder: ${arg}`); process.exit(1); }
-    const app = loadApp(arg);
-    const blobs = allBlobs(app);
-    console.log(`\n${arg}: ${app.forms.length} forms, ${app.cases.length} cases, ${app.processes.length} processes, ${app.pages.length} pages, ${app.lists.length} lists, ${blobs.length} blobs`);
-    if (cmd === "check") {
-      let issues = [];
-      for (const b of blobs) issues = issues.concat(validateBlob(b));
-      report(issues);
-      process.exit(errors(issues).length ? 1 : 0);
-    }
     process.exit(0);
   }
 

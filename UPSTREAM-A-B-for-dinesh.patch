@@ -1,0 +1,58 @@
+--- kf-app-author/engine/client.mjs	2026-07-06 12:05:00
++++ kissflow-app-ui-plugin/plugins/kissflow-app-ui/engine/client.mjs	2026-07-06 12:46:50
+@@ -56,10 +56,19 @@
+ }
+ 
+ export function clientFromEnv() {
+-  const sub = process.env.KISSFLOW_SUBDOMAIN, acc = process.env.KISSFLOW_ACCOUNT_ID;
+-  const key = process.env.KISSFLOW_API_KEY, secret = process.env.KISSFLOW_API_SECRET;
+-  if (!sub || !acc || !key || !secret) throw new Error("KISSFLOW_SUBDOMAIN/ACCOUNT_ID/API_KEY/API_SECRET must be set in env");
+-  const base = `https://${sub}.kissflow.com`;
++  // Accept both the engine's KISSFLOW_* names and the UI-tooling KF_* names (scaffold + .env).
++  const env = process.env;
++  const acc = env.KISSFLOW_ACCOUNT_ID || env.KF_ACCOUNT_ID;
++  const key = env.KISSFLOW_API_KEY || env.KF_ACCESS_KEY_ID;
++  const secret = env.KISSFLOW_API_SECRET || env.KF_ACCESS_KEY_SECRET;
++  // Host: a full-domain override (KISSFLOW_DOMAIN/KF_DOMAIN) wins — needed for non-*.kissflow.com
++  // hosts (QA/self-hosted). Otherwise fall back to <subdomain>.kissflow.com.
++  const domain = env.KISSFLOW_DOMAIN || env.KF_DOMAIN;
++  const sub = env.KISSFLOW_SUBDOMAIN || env.KF_SUBDOMAIN;
++  if (!acc || !key || !secret || (!domain && !sub))
++    throw new Error("Set KISSFLOW_ACCOUNT_ID/API_KEY/API_SECRET (or KF_ACCOUNT_ID/KF_ACCESS_KEY_ID/KF_ACCESS_KEY_SECRET) and KISSFLOW_DOMAIN/KF_DOMAIN (or KISSFLOW_SUBDOMAIN) in env");
++  const host = domain ? domain.replace(/^https?:\/\//, "").replace(/\/+$/, "") : `${sub}.kissflow.com`;
++  const base = `https://${host}`;
+   const headers = { "X-Access-Key-Id": key, "X-Access-Key-Secret": secret, "Content-Type": "application/json" };
+   // RESILIENT call: retry transient network failures + 5xx/429 with backoff, and NEVER throw —
+   // a single hiccup among the hundreds of apply calls must not abort the run (which would skip
+@@ -90,6 +99,10 @@
+     getDraft: (type, id) => call("GET", `/metadata/2/${acc}/${type}/${id}/draft`),
+     putDraft: (type, id, blob) => call("PUT", `/metadata/2/${acc}/${type}/${id}/draft`, blob),
+     publish: (type, id) => call("POST", `/metadata/2/${acc}/${type}/${id}/publish`, {}),
++    // Lists don't use the metadata draft/publish path — their option values are saved via the
++    // runtime save-items handler: POST /flow/2/{acc}/list/{id}/items {ListItems:[...]} (verified
++    // live 2026-07-03; wrong shapes 400 "Unknown field", top-level array 403, metadata path 404).
++    putListItems: (id, items) => call("POST", `/flow/2/${acc}/list/${id}/items`, { ListItems: items }),
+     // roles associate via BODY _application_id (NOT the query param flows use); list: /app_role/2/{acc}/list?_application_id=
+     createRole: (Name, appId) => call("POST", `/app_role/2/${acc}/`, { Name, _application_id: appId }),
+     explore: () => call("GET", `/flow/2/${acc}/explore`),
+@@ -214,6 +227,20 @@
+     log(`shell ${a.type} ${a.id} → ${serverId}`);
+   });
+ 
++  // PASS 1b — list items: lists are created as shells in PASS 1 but carry no blob (skipped by the
++  // body pass). Their option values live in the artifact `.doc.ListItems` and must be saved via the
++  // runtime save-items handler, or every Select backed by the list is empty (required Selects then
++  // become unsatisfiable — no record can be created, even by a real user in the Kissflow UI).
++  for (const a of artifacts.filter((x) => x.type === "list")) {
++    const server = genToServer[a.id];
++    const items = a.doc?.ListItems || a.shell?.ListItems;
++    if (!server || !Array.isArray(items) || !items.length) continue;
++    const li = await c.putListItems(server, items);
++    if (li.status < 300) { report.listItems = report.listItems || []; report.listItems.push({ id: server, count: items.length }); }
++    else report.errors.push(`list items ${server}: ${li.status} ${JSON.stringify(li.body).slice(0, 120)}`);
++    log(`list-items ${server} → ${li.status} (${items.length})`);
++  }
++
+   // PASS 2 — bodies: graft remapped blob onto the server starter draft, then publish.
+   // Parallel (4-wide): flows are independent; genToServer/liveIds are complete after the PASS-1 barrier.
+   await pMap(flowMeta, 4, async (fm) => {

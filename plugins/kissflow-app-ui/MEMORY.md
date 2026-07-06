@@ -15,6 +15,34 @@ override, a confirmed approach. This is the fast-moving log; durable, universall
 - **CONSOLIDATE** — merge duplicates; delete entries later proven wrong.
 - **PROMOTE** — when an entry is durable + universal, move it into `reference/LESSONS.md` and leave a
   one-line pointer here.
+- **DECAY** — memory ages out so agents stop paying attention tax on stale entries: `[app:*]`
+  after 90 days, `[agent:*]` after 240, `[global]` + promoted stubs after 365 — measured from the
+  NEWEST date in the entry. Re-verified a fact live? Append `(reaffirmed YYYY-MM-DD)` to reset its
+  clock. Run `node engine/memory.mjs decay MEMORY.md` (use `--dry-run` to preview; `stats` for an
+  age profile). Expired entries move to MEMORY-ARCHIVE.md — never deleted, resurrectable.
+
+
+## RECORDING RULES — Trustworthy Memory, Phase 1 (2026-07-04)
+Beliefs earn authority; they don't get it for free. When writing an entry:
+- **Separate OBSERVATION from INTERPRETATION.** First record what actually happened — what was
+  sent, what came back, which engine version was in the path. Then the claim, as a labeled
+  inference with a tier tag: `[tier:observed-once|reproduced|golden-verified|owner-confirmed]`.
+  Observations cannot rot; interpretations can and do (see the retired §1b "formula stripping").
+- **SELF-SUSPICION RULE (mandatory for platform-limit claims).** Before recording "the platform
+  can't/doesn't X", run the control experiment: does the builder UI or a golden export succeed
+  where our API call failed? If yes → the class is ENGINE-DEFECT, not platform-limit. This rule
+  would have prevented DEF-4, R7, and §1b.
+- **IMPOSSIBILITY QUARANTINE.** Claims of the form "X is impossible/unsupported" silently degrade
+  every future design and no error ever points at them. Tag them `[impossibility]`, add them to
+  CONFIRM-QUEUE.md, and treat them as challengeable until `[tier:owner-confirmed]`. Any design
+  decision that relies on one MUST say so in decisions.md (the review page surfaces these).
+- **Cite lesson ids in decisions** (R7-style) — citations are what make contradiction propagate.
+- **FEDERATION.** This MEMORY.md is the CANONICAL memory — it ships with the plugin and is
+  REPLACED on plugin updates. Instance-specific learning goes to **MEMORY-LOCAL.md** (agents READ
+  both, WRITE local only). Share what you learned: `node engine/memory.mjs contribute` extracts the
+  global/agent-scoped slice (never [app:*] project knowledge) as MEMORY-CONTRIBUTION.md — submit it
+  to the plugin repo; the platform owner reviews and merges. [impossibility] claims from the field
+  enter CONFIRM-QUEUE.md as PENDING — they never self-promote.
 
 ## Entries
 - 2026-06-30 [global] Published processes are IMMUTABLE over REST (PUT→403, DELETE→no-op) — bake all
@@ -206,3 +234,12 @@ override, a confirmed approach. This is the fast-moving log; durable, universall
 - 2026-07-03 [global] Case member/batch REJECTS Permission:["Delete"] (UnsupportedPermissionError) — case members are Role Member|Viewer|Admin with Permission:[] only. applyIR's form-style member payload is wrong for cases.
 - 2026-07-03 [global] applyIR publish-failure report used to log the DRAFT body instead of the PUBLISH error (fixed) — if you see draft=200 publish=500 with a blob echo, re-POST the publish endpoint to get the real error.
 - 2026-07-03 [global] CORRECTION (supersedes "integration author route is internal-only → defer live write"): integration CREATE + draft-map + PUBLISH all work with a standard public API key — applyIntegrationResolved ran end-to-end live (npd-plm s1 fully mapped incl. live resolveEntityFields=14, s5 email action w/ builder-deferred To/Subject/Body; both Status Live + IsActive:false). ONLY the on/off toggle and email-connection provisioning need Integration-Admin. Process/dataset/board/project CONNECTIONS were readable with the public key on this account. So: always CREATE integrations at apply (never auto-activate); INT-C1 ._id subpath still verified in builder before turn-on.
+- 2026-07-03 [global] TIMELINE instrumentation — every run should have runs/<id>/timeline.jsonl: engine cli AUTO-stamps verify/build/apply start+end (set KF_ACTOR=<agent> so the span is attributed to you) and runs.mjs marks every snapshot; agents SHOULD bracket long work with `node engine/timeline.mjs start|end "<agent>" "<step>" --run <runDir>`; `node engine/timeline.mjs report <runDir>` prints total wall-clock + per-actor durations. Instrumentation is try/catch-silent — it can never break a build.
+- 2026-07-04 [global] APPLY IS PARALLELIZED (client.mjs pMap): shells 5-wide, draft+publish 4-wide, permission grants 5-wide + per-flow report-list cache — measured on the P2P spec: apply 90s → 47s (shells 9→3s, bodies 14→3s, grants 21→3s). PASS-1→PASS-2 barrier retained (remap needs all server ids). Remaining costs: page/nav transformer spawns (~22s, next target: batch one python call) + API latency floor.
+- 2026-07-04 [global] A PUBLISHED app cannot be archived over the public API (archive → 403; delete blocked without archive) — only never-published Draft apps clean up. Do NOT create throwaway apps casually on shared accounts; name unavoidable benchmarks clearly (e.g. "P2P Perf Benchmark", left on dev-lcncdemo 2026-07-04).
+- 2026-07-04 [global] R7 SUPERSEDED — CROSS-FLOW PER-ITEM AGGREGATION IS EXPRESSIBLE and live-verified (P2P Suite: PR.Total Estimated Cost = SUM(Requisition Line Item.Line Total) joined per-item; PO.Order Amount likewise): QD {LHSModel:<target flow>, LHSModelApplicationId:<app>, FlowType:<target's type>, AggregateField, AggregateType, QueryDefinition::Criteria→Condition {LHSField:<target's ref field>, EQUAL_TO, RHSType:Field, RHSField:"_id"}} — NO LHSRootModel (that's only for embedded child tables). Golden source: ITAM Asset_Disposal "Repair costs until now". Engine: f.aggregate.match={field,equals?} emits this shape. IMPLICATION for npd-plm: the Plants-Routed advisory gate could become a REAL per-sheet count over plant-estimation.
+- 2026-07-04 [global] DEF-4 **SOLVED** (supersedes the flatten/promote-to-form guidance): the graft dissolved child tables because addChildTable never declared the child on the parent via **Model::Model** — one line, found by diffing the golden Employee_Leave_Request export, live-verified on P2P Suite (PR req_lines + PO po_lines both runtime-visible with working LHSRootModel aggregates). Embedded child tables are FIRST-CLASS again; standalone line-item form + cross-flow match aggregate remains a valid ALTERNATIVE when rows must be referenced cross-flow. NOTE the runtime gate parse: /process/2/{acc}/{id}/allfields returns {"<flowId>": {Tables:[...]}} — keyed by flow id, NOT top-level Tables (a wrong parse reproduces the 'defect' after it's fixed).
+- 2026-07-04 [global] **"Process formulas strip on publish" is FALSE — retire it** (confirmed by the platform owner; empirically: nothing was ever stripped — drafts retain Expressions through publish, and child-table column formulas are live-verified working on P2P Suite). The historical "stripping" observation traced to OUR early malformed Expression ASTs (the empty-node era), not platform behavior. Kissflow does not strip formulas; author process computed fields normally (engine compileFormula emits the golden shape). Update LESSONS §1b accordingly.
+- 2026-07-04 [global] OWNER VERDICTS on the confirmation queue (Trustworthy Memory): **Q1 DENIED** — the platform SUPPORTS parallel branches + conditional skips in workflows [tier:owner-confirmed]; addWorkflow's Sequence-only output is an ENGINE GAP. **Q2 CONFIRMED** — no conditional-mandatory primitive exists [tier:owner-confirmed]; the R14 optional+convention pattern is the correct design. **Q3 DENIED** — row-level report scoping EXISTS [tier:owner-confirmed]; "report View = all items" was an engine/knowledge gap, and SEC-R2-style "scope is convention" waivers must be revisited once the engine learns the scoping shape. Discovery work queued for the branch and report-scope metadata shapes (golden exports / platform source / UI-built samples).
+- 2026-07-04 [global] Q4 CONFIRMED by platform owner [tier:owner-confirmed]: integrations have NO field-change trigger — item-level events (created/submitted/completed/advances) are the full trigger vocabulary. Pull surfaces (scoped ledger views) remain the correct pattern for field-edit signals; do not design speculative edit-stitches.
+- 2026-07-04 [global] Q6 CONFIRMED by platform owner [tier:owner-confirmed]: published apps cannot be archived/deleted via the public API — throwaway/benchmark apps on shared accounts are permanent; create them rarely and name them unmistakably.

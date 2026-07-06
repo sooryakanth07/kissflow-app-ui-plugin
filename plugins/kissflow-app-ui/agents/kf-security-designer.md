@@ -44,6 +44,10 @@ statuses{} } } } }, data_scope (the canonical role×flow→scope map dashboards/
 ## [HARD] rules
 - **No lockouts** — every workflow step has at least one role that can act it; no journey persona is
   denied a step it must perform; no flow is invisible to all roles that need it.
+- **Prefer STAFFED roles for approval/act steps** — a role being *assigned* to a step isn't enough; it
+  must have **≥1 assignable member** at go-live, or the first `submit` fails ("There is no assignee for
+  the next step …"). When choosing the actor role for an approval/act step, pick one that will be
+  staffed; if a role may be empty at launch, add a fallback assignee (creator/admin) and flag it.
 - **Name the INITIATOR + ACCESSORS of every flow — DATA FORMS included** — for each flow (process,
   case, and **data form**: masters, registries, parent/sub-records) record which role(s) may
   **create/initiate** it and which may **read** its data. The experience-designer gates the create
@@ -51,10 +55,6 @@ statuses{} } } } }, data_scope (the canonical role×flow→scope map dashboards/
   for masters and sub-record forms too — not only processes. No flow may have **zero creators**
   (uncreatable) or **zero readers** (invisible). E.g. fund sub-records → created by the fund's manager,
   read by its assigned users/viewers; shared masters → created by Admin, read by all who reference them.
-- **Prefer roles that will be STAFFED for approval/act steps** — a workflow step routed to a role with
-  zero members has no assignee at go-live, so `submit` fails outright ("no assignee for the next step").
-  For any approval/act step, assign a role that will actually have people in it, or designate a fallback
-  assignee (creator/admin). Flag empty-at-go-live actor roles rather than silently routing to them.
 - **One data scope, reused everywhere** — define scope here once; views and dashboards must consume
   this map, not re-invent it. Inconsistent scope is a coherence failure.
 - **Stay in your lane** — capabilities only; no field definitions, no step structure, no page layout.

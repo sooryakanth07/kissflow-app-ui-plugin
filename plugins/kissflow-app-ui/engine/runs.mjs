@@ -41,6 +41,7 @@ if (cmd === "new") {
   for (const f of WORKING) { const src = join(dir, f); if (existsSync(src)) cpSync(src, join(vdir, f), { recursive: true }); }
   writeFileSync(join(vdir, "CHANGES.md"), `# ${v}\n\n${arg || "(snapshot)"}\n`);
   appendFileSync(join(dir, "RUN.md"), `- **${v}** — ${(arg || "snapshot").split("\n")[0]}\n`);
+  try { const { stamp } = await import("./timeline.mjs"); stamp(dir, "runs", `snapshot ${v} — ${(arg || "snapshot").split("\n")[0]}`, "mark"); } catch { /* never fatal */ }
   console.log(join(vdir));
 } else if (cmd === "list") {
   mkdirSync(RUNS, { recursive: true });

@@ -26,9 +26,10 @@ surface everything you had to infer so the user can correct it before `/author-p
    write the text to `runs/current/brd.md`. This makes `runs/<slug>/` the **current** run; all
    subsequent stages operate on `runs/current/`.
 2. **Read the requirement** (the file, for PDFs/large docs in full; or the pasted/one-line text).
-   **PDF BRD** → extract text FIRST; the Read tool can fail on subsetted-font PDFs (glyph garbage). Try
-   `pdftotext <file> -` (poppler), or `python3 -c "import pypdf,sys;print('\n'.join(p.extract_text() for p in pypdf.PdfReader(sys.argv[1]).pages))" <file>`
-   (`pip install pypdf` if missing), and ingest the extracted plain text.
+   - **PDF BRDs need a text-extraction step first** — the Read tool often can't render a PDF (no
+     poppler), and Coda/exported PDFs with subsetted CID fonts yield glyph garbage on naive stream
+     reads. Extract to text before ingesting: `pdftotext "<file.pdf>" -` (prints to stdout), or a
+     pypdf one-liner: `python3 -c "import sys,pypdf; print('\n'.join(p.extract_text() or '' for p in pypdf.PdfReader(sys.argv[1]).pages))" "<file.pdf>"` (`pip install pypdf` if missing). Ingest the extracted text, not the raw PDF.
 3. **Extract the domain** — spawn `kf-ba` (+ `kf-comprehension` for a big/messy doc): personas,
    journeys (outcomes), entities (+ key attributes + relationships), business rules → write to
    `runs/current/app-spec.json#domain`.

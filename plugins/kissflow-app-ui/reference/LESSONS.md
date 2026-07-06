@@ -17,10 +17,12 @@ aggregates, lookups, and workflow must ALL be baked in before the first publish.
 path to change a published process — rebuild the whole app fresh (a new app) with everything correct.
 Corollaries:
 - **Forms ARE editable** (`PUT …/form/{id}/draft` works) — retrofit forms freely; only processes freeze.
-- **Process field formulas STRIP on publish.** A computed field's `Expression` survives on a *form*
-  but is dropped when a *process* publishes (open issue — process computed fields use a different
-  placement). `QueryDefinition`-based fields (references / lookups / **aggregates**) DO survive process
-  publish. So don't rely on process *formulas* yet; aggregates/lookups on processes are fine.
+- **CORRECTED 2026-07-04: process formulas do NOT strip.** Kissflow never drops a valid `Expression`
+  on publish (confirmed by the platform owner + live-verified: child-table column formulas working on
+  a published process). The old "stripping" observation came from our early malformed/empty Expression
+  ASTs. Author computed fields on forms, processes, and child-table columns normally — compileFormula
+  emits the verified shape. `QueryDefinition`-based fields (references / lookups / aggregates) also
+  survive, as always.
 - **Flow DELETE is async**: it returns OK but the name stays reserved briefly — an immediate re-create
   hits `FlowNameAlreadyExists`. Wait/retry before recreating.
 
