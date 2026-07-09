@@ -103,8 +103,12 @@ try {
     const v = validateIR(ir);
     if (!v.ok) { console.log("IR invalid — fix before applying:"); report(v.issues); tl(arg, "apply", "end"), process.exit(1); }
     const { applyIR } = await import("./client.mjs");
+    // RESUMABLE: checkpoint next to the IR so a re-run (e.g. after a bash-timeout kill in Cowork)
+    // continues instead of re-publishing. Delete apply-state.json to force a clean re-apply.
+    const stateFile = join(dirname(arg), "apply-state.json");
+    if (existsSync(stateFile)) console.log(`resuming from checkpoint ${stateFile} (delete it to start clean)`);
     console.log(`\nAPPLY (LIVE) — ${ir.app?.name} → ${(process.env.KISSFLOW_DOMAIN || process.env.KF_DOMAIN) || `${process.env.KISSFLOW_SUBDOMAIN}.kissflow.com`}`);
-    const rep = await applyIR(ir);
+    const rep = await applyIR(ir, { stateFile });
     console.log("\n=== REPORT ===");
     console.log(`app: ${rep.app}`);
     console.log(`roles: ${rep.roles.map((r) => r.name + "(" + r.status + ")").join(", ")}`);

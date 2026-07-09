@@ -22,6 +22,7 @@ the install cache (newest version) before copying, and fail loudly if the engine
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(ls -d ~/.claude/plugins/cache/kissflow/kissflow-app-ui/*/ 2>/dev/null | sort -V | tail -1)}"
 [ -d "$PLUGIN_ROOT/engine" ] || { echo "ERROR: plugin root not found (set \$CLAUDE_PLUGIN_ROOT or check ~/.claude/plugins/cache/kissflow/kissflow-app-ui/)"; exit 1; }
 cp -R "$PLUGIN_ROOT/engine" "$PLUGIN_ROOT/reference" "$PLUGIN_ROOT/MEMORY.md" .
+chmod -R u+w engine reference MEMORY.md   # the plugin cache is read-only (0500/0400); cp -R propagates that, so the engine can't write runs/ or MEMORY.md — make the copy writable (else it fails and you'd have to escape to /tmp)
 ```
 You now have `./engine` (the deterministic IR→metadata builder + validators + tests), `./reference`
 (the playbooks the agents read first), and `./MEMORY.md` (the auto-evolving agent memory — yours to

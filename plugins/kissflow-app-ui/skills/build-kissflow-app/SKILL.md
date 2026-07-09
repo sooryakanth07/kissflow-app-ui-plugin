@@ -16,20 +16,27 @@ scaffold; it's only used later for data sync — see step 4.)
 
 ## 2. Scaffold (non-interactive)
 
-From the directory where the project should live, run:
+**First `cd` into the folder where the project should live — NEVER scaffold into a temp/scratch
+CWD.** `create-kf-app` creates `./<project-name>/` relative to the CWD, so the CWD must be the
+user's target folder:
+- If the user named a folder, use it.
+- **In Cowork the CWD is a sandbox `…/mnt/outputs`** — the user's selected folder is a *sibling*
+  mount: `ls -d /sessions/*/mnt/*/ 2>/dev/null | grep -v '/outputs/'`. `cd` into the single match;
+  if several (or none), ask which folder to build in. (Locally: the given/current dir, or ask.)
 
 ```bash
+cd "<target-folder>"     # the user's selected/given folder — not a temp dir
 npx -y @abdul-kissflow/create-kf-app --target app --name <project-name> --yes
 ```
 
 This creates `./<project-name>/` — a Vite + React app on `@abdul-kissflow/app-ui` with
-folder-based routing, a layout, the SDK wired up, and the agent docs.
+folder-based routing, a layout, the SDK wired up, and the agent docs — **in the user's folder**.
 
 ## 3. Install + onboard yourself
 
 ```bash
 cd <project-name>
-npm install
+npm install    # large — in an env that caps bash calls (Cowork ~44s), run it in the BACKGROUND or expect to resume; a timed-out call mid-install is not a failure, just re-run
 ```
 
 Then read the project's own guidance (it's written for you):
