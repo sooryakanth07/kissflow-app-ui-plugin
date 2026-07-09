@@ -8,6 +8,13 @@ playbooks, and the seed memory inside the installed plugin (`$CLAUDE_PLUGIN_ROOT
 them into your workspace so the `node engine/cli.mjs …` commands resolve and the agents can read the
 playbooks + evolve `MEMORY.md (canonical — replaced on plugin update) and create an empty MEMORY-LOCAL.md (instance learning; agents write here)` locally.
 
+**Break the silence FIRST.** Setup + the first engine call are the coldest, most silent wait a user
+feels (esp. in Cowork). Your VERY FIRST output — before the copy, the smoke test, or any `node` call —
+must be a warm line so the user isn't staring at nothing: *"⚙️ Warming up — staging the build engine
+and checking your Kissflow connection (one-time, a few seconds)…"*. Then narrate each step as it
+finishes: *"✓ Engine ready."* · *"✓ Connected to <subdomain> (dev)."* Never run the slow steps before
+emitting that first line.
+
 ## 1. Materialize the engine + playbooks + seed memory
 `$CLAUDE_PLUGIN_ROOT` is often **empty** in the Bash tool env, so self-resolve the plugin root from
 the install cache (newest version) before copying, and fail loudly if the engine still isn't found:

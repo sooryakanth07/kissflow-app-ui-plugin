@@ -84,6 +84,13 @@ The design system is no longer generated — it ships with the engine. ASSEMBLE,
    the shell toggles visibility and calls `window.PAGES[navId]()` if registered.
 4. **Assemble + verify as before:** `node engine/proto-assemble.mjs <partsDir>` (defers part
    scripts after the shell's SEED script); the CONDUCTOR screenshot-verifies each role headlessly.
+5. **CAPTURE SCREENS for the review** — right after assembly, run
+   `node engine/capture-screens.mjs <runDir>/prototype/index.html` (it reads `window.ROLES`, drives
+   `switchRole` itself, and writes `<runDir>/prototype/thumbs/*.png` + `manifest.json`). This is what
+   feeds `review.mjs`'s **Screens** review (InVision-style: filmstrip + role dropdown + comment pins +
+   "Copy feedback → /author-refine") in the Pages & Nav tab — so the user reviews the REAL screens,
+   not wireframes. Local/dev only (needs headless Chrome; no-op in a headless sandbox → review falls
+   back to wireframe mocks). Re-render the review after: `node engine/review.mjs <runDir>/app-spec.json …`.
 Why this is fast AND on-brand: Lovable itself emits shadcn/ui — shadcn conventions + the violet
 light theme ARE the Lovable look, guaranteed by the kit rather than by agent skill. Note: the
 prototype now needs network when opened (Tailwind CDN, like the Google Fonts it already used).

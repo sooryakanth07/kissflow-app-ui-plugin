@@ -6,6 +6,13 @@ argument-hint: [--dry-run] [--yes] (operates on runs/current)
 **Stage 6: build.** Turn the plan into a real Kissflow app. This is the destructive/irreversible step
 (published Processes/Cases can't be un-published over REST), so treat it with care.
 
+**Narrate progress** (esp. Cowork): emit a warm, plain line as you start building
+(*"🚀 kf-author is building it live in Kissflow — creating and publishing every flow, page and role…"*)
+and when acceptance runs (*"✅ kf-acceptance is test-driving each journey…"*), then a plain result
+(*"✓ Live — 1 process, 3 dashboards; every journey passed."*). No jargon. See `author-app.md` (USER PROGRESS).
+**End with the time taken** — close on the total wall-clock (*"⏱ Built in 1m57s."*) from
+`node engine/timeline.mjs report runs/current`; it's the demo headline.
+
 Pre-req: a current run with a **verified** `runs/current/app-spec.json`. Gate is *valid IR*, not
 "review was done" — so the express/demo path can reach here directly.
 

@@ -7,7 +7,7 @@
 // shown — the same baseline the engine guarantees at build. Zero server-side deps.
 //
 //   node review.mjs <ir.json> [decisions.md] [open-questions.md] > review.html
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { ensureExperience } from "./experience.mjs";
 
@@ -32,6 +32,94 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 const slug = (s) => String(s).replace(/[^a-zA-Z0-9]+/g, "-");
 // in Kissflow a "Reference" field IS a lookup — show it as such
 const typeLabel = (t) => (/^reference$/i.test(t || "") ? "Lookup" : (t || ""));
+
+// PROTOTYPE SCREENS — if the run has captured prototype screenshots
+// (<runDir>/prototype/thumbs/manifest.json + pngs), the Pages & Nav section becomes an
+// InVision-style review: filmstrip (role-filtered) + big screen + click-to-pin comments +
+// Copy-feedback → /author-refine. Otherwise it falls back to the wireframe page mocks.
+let SCREENS = [];
+try {
+  const tdir = join(dirname(irPath), "prototype", "thumbs");
+  const mpath = join(tdir, "manifest.json");
+  if (existsSync(mpath)) {
+    const man = JSON.parse(readFileSync(mpath, "utf8"));
+    SCREENS = (man.screens || []).filter((s) => existsSync(join(tdir, s.file))).map((s) => ({
+      name: s.name, role: s.role || "",
+      img: "data:image/png;base64," + readFileSync(join(tdir, s.file)).toString("base64"),
+    }));
+  }
+} catch { SCREENS = []; }
+
+function screensReview(screens) {
+  const roles = [...new Set(screens.map((s) => s.role).filter(Boolean))];
+  const app = ir.app?.name || "App";
+  return `<div class="scr" id="scrRoot"><style>
+  .scr{display:grid;grid-template-columns:236px 1fr 264px;height:540px;border:1px solid var(--brd,#e6eaf2);border-radius:var(--r,16px);overflow:hidden;background:var(--card,#fff);color:var(--ink,#0f1836);font-family:var(--font,inherit);font-size:13px;box-shadow:var(--sh-sm,0 1px 2px rgba(15,24,54,.05))}
+  .scr *{box-sizing:border-box}
+  .scr-l{background:#fafbff;border-right:1px solid var(--brd,#e6eaf2);display:flex;flex-direction:column;min-height:0}
+  .scr-flt{padding:9px 12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line,#eef1f7)}
+  .scr-sellbl{font-size:11px;font-weight:700;color:var(--muted,#647089);text-transform:uppercase;letter-spacing:.03em}
+  .scr-sel{flex:1;font:inherit;font-size:12.5px;font-weight:600;padding:6px 8px;border-radius:8px;border:1px solid var(--brd,#e6eaf2);background:#fff;color:var(--ink,#0f1836);cursor:pointer}
+  .scr-prog{padding:8px 12px;border-bottom:1px solid var(--line,#eef1f7);font-size:11.5px;color:var(--muted,#647089);display:flex;align-items:center;gap:8px}
+  .scr-pb{flex:1;height:5px;background:#eef1f7;border-radius:4px;overflow:hidden}.scr-pb i{display:block;height:100%;background:var(--ok,#0fa968);width:0;transition:.3s}
+  .scr-strip{flex:1;overflow-y:auto;padding:10px}
+  .scr-th{border:1px solid var(--brd,#e6eaf2);border-radius:11px;overflow:hidden;margin-bottom:10px;cursor:pointer;background:#fff;transition:.15s}
+  .scr-th:hover{border-color:var(--primary-2,#8b6cf6)}
+  .scr-th.on{border-color:var(--primary,#5a5df2);box-shadow:0 0 0 2px var(--primary-soft,#ecebfe)}
+  .scr-th img{width:100%;display:block;height:90px;object-fit:cover;object-position:top;border-bottom:1px solid var(--line,#eef1f7)}
+  .scr-cap{display:flex;align-items:center;gap:6px;padding:8px 10px}.scr-cap .nm{font-size:12px;font-weight:700;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink,#0f1836)}
+  .scr-dot{width:8px;height:8px;border-radius:50%;background:#cbd2e0;flex:0 0 auto}.scr-dot.ok{background:var(--ok,#0fa968)}.scr-dot.warn{background:var(--chg,#f59e0b)}
+  .scr-rb{font-size:10.5px;color:var(--muted,#647089);padding:0 10px 8px}
+  .scr-c{position:relative;overflow:auto;background:var(--bg,#f5f7fc);display:flex;flex-direction:column}
+  .scr-top{position:sticky;top:0;z-index:5;background:rgba(255,255,255,.92);backdrop-filter:blur(6px);border-bottom:1px solid var(--brd,#e6eaf2);display:flex;flex-wrap:nowrap;align-items:center;gap:8px;padding:8px 14px;min-height:48px}
+  .scr-top .tt{font-weight:700;color:var(--ink,#0f1836);white-space:nowrap}.scr-top .rr{color:var(--muted,#647089);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.scr-sp{flex:1;min-width:8px}
+  .scr-btn{font-size:12px;line-height:1;height:30px;padding:0 12px;display:inline-flex;align-items:center;gap:5px;border-radius:8px;border:1px solid var(--brd,#e6eaf2);background:#fff;color:var(--ink,#0f1836);cursor:pointer;font-weight:600;white-space:nowrap;flex:0 0 auto}
+  .scr-btn.ok{background:var(--ok,#0fa968);border-color:var(--ok,#0fa968);color:#fff}.scr-btn.warn{background:var(--chg,#f59e0b);border-color:var(--chg,#f59e0b);color:#fff}.scr-btn.gh{background:#fff}.scr-btn.on{border-color:var(--primary,#5a5df2);box-shadow:0 0 0 2px var(--primary-soft,#ecebfe)}
+  .scr-stage-wrap{flex:1;display:flex;justify-content:center;padding:18px}
+  .scr-stage{position:relative;max-width:860px;width:100%;align-self:flex-start;border-radius:12px;overflow:hidden;box-shadow:0 12px 36px rgba(15,24,54,.13);border:1px solid var(--brd,#e6eaf2);background:#fff}
+  .scr-stage.cm{cursor:crosshair}.scr-stage img{width:100%;display:block}
+  .scr-pin{position:absolute;width:24px;height:24px;margin:-12px 0 0 -12px;border-radius:50% 50% 50% 2px;background:var(--primary,#5a5df2);color:#fff;display:grid;place-items:center;font-size:11px;font-weight:700;box-shadow:0 3px 8px rgba(15,24,54,.3);cursor:pointer}
+  .scr-r{background:#fafbff;border-left:1px solid var(--brd,#e6eaf2);display:flex;flex-direction:column;min-height:0}
+  .scr-rh{padding:12px 14px;border-bottom:1px solid var(--line,#eef1f7);font-weight:700;display:flex;align-items:center;gap:8px;color:var(--ink,#0f1836)}
+  .scr-v{font-size:10.5px;padding:2px 8px;border-radius:999px;background:#eef1f7;color:var(--muted,#647089)}.scr-v.ok{background:var(--ok-soft,#e2f7ee);color:var(--ok,#0fa968)}.scr-v.warn{background:#fef3e2;color:var(--chg,#f59e0b)}
+  .scr-cs{flex:1;overflow-y:auto;padding:10px 12px}
+  .scr-cm{background:#fff;border:1px solid var(--brd,#e6eaf2);border-radius:10px;padding:8px 10px;margin-bottom:8px;display:flex;gap:8px;color:var(--ink,#0f1836);align-items:flex-start}
+  .scr-cm .n{width:19px;height:19px;border-radius:50%;background:var(--primary,#5a5df2);color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;flex:0 0 auto}.scr-cm .x{color:var(--muted,#647089);cursor:pointer}
+  .scr-empty{color:var(--muted,#647089);font-size:12.5px;padding:16px;text-align:center;line-height:1.6}
+  .scr-foot{border-top:1px solid var(--brd,#e6eaf2);padding:12px}.scr-foot .scr-btn{width:100%;display:flex;justify-content:center;margin-bottom:8px}.scr-foot .cp{background:var(--primary,#5a5df2);border-color:var(--primary,#5a5df2);color:#fff}
+  .scr-foot textarea{width:100%;border:1px solid var(--brd,#e6eaf2);background:#fff;color:var(--ink,#0f1836);border-radius:9px;padding:8px;font:inherit;resize:vertical;min-height:52px;display:none;margin-bottom:8px}
+  </style>
+  <aside class="scr-l">
+    <div class="scr-prog"><span id="scrPg">0/${screens.length}</span><div class="scr-pb"><i id="scrPb"></i></div></div>
+    <div class="scr-flt"><span class="scr-sellbl">Role</span><select class="scr-sel" id="scrFltSel"></select></div><div class="scr-strip" id="scrStrip"></div></aside>
+  <main class="scr-c"><div class="scr-top"><span class="tt" id="scrTt"></span><span class="rr" id="scrRr"></span><span class="scr-sp"></span>
+    <button class="scr-btn gh on" id="scrMode">💬 Comment</button><button class="scr-btn ok" id="scrApp">Approve</button><button class="scr-btn warn" id="scrReq">Request changes</button></div>
+    <div class="scr-stage-wrap"><div class="scr-stage cm" id="scrStage"><img id="scrShot" alt=""></div></div></main>
+  <aside class="scr-r"><div class="scr-rh">Comments <span class="scr-v" id="scrVd">unreviewed</span></div><div class="scr-cs" id="scrCs"></div>
+    <div class="scr-foot"><textarea id="scrDraft" placeholder="Describe the change… (Enter to save)"></textarea>
+    <button class="scr-btn cp" id="scrCopy">Copy feedback → /author-refine</button><button class="scr-btn gh" id="scrReset">Reset</button></div></aside>
+  </div>
+  <script>(function(){
+  var S=${JSON.stringify(screens)},RS=${JSON.stringify(roles)},APP=${JSON.stringify(app)};
+  var st=S.map(function(){return{v:null,c:[]}}),cur=0,flt="All",cm=true,pend=null,sel=null;
+  var strip=document.getElementById('scrStrip'),sel=document.getElementById('scrFltSel'),stage=document.getElementById('scrStage'),shot=document.getElementById('scrShot'),draft=document.getElementById('scrDraft'),cs=document.getElementById('scrCs'),vd=document.getElementById('scrVd');
+  function vis(){return S.map(function(s,i){return{s:s,i:i}}).filter(function(x){return flt==="All"||x.s.role===flt})}
+  function rf(){var a=["All"].concat(RS);sel.innerHTML=a.map(function(r){return '<option'+(flt===r?' selected':'')+'>'+r+'</option>'}).join('');sel.onchange=function(){flt=sel.value;rs()}}
+  function rs(){strip.innerHTML=vis().map(function(o){var s=o.s,i=o.i,v=st[i].v,cl=v==='a'?'ok':v==='r'?'warn':'',n=st[i].c.length;return '<div class="scr-th'+(i===cur?' on':'')+'" data-i="'+i+'"><img src="'+s.img+'"><div class="scr-cap"><span class="scr-dot '+cl+'"></span><span class="nm">'+s.name+'</span>'+(n?'<span style="font-size:11px;color:#8a93a6">💬'+n+'</span>':'')+'</div><div class="scr-rb">'+(s.role||'')+'</div></div>'}).join('')||'<div class="scr-empty">No screens for this role.</div>';[].forEach.call(strip.querySelectorAll('.scr-th'),function(t){t.onclick=function(){sl(+t.dataset.i)}})}
+  function sl(i){cur=i;pend=null;sel=null;draft.style.display='none';rst();rs();rc()}
+  function rst(){var s=S[cur];shot.src=s.img;document.getElementById('scrTt').textContent=s.name;document.getElementById('scrRr').textContent='· '+(s.role||'')+'  ('+(cur+1)+' of '+S.length+')';[].forEach.call(stage.querySelectorAll('.scr-pin'),function(p){p.remove()});st[cur].c.forEach(function(c,idx){var p=document.createElement('div');p.className='scr-pin';p.textContent=idx+1;p.style.left=c.x+'%';p.style.top=c.y+'%';p.onclick=function(e){e.stopPropagation();sel=idx;rc();rst()};stage.appendChild(p)});stage.classList.toggle('cm',cm)}
+  stage.onclick=function(e){if(!cm||e.target.classList.contains('scr-pin'))return;var r=shot.getBoundingClientRect();pend={x:(e.clientX-r.left)/r.width*100,y:(e.clientY-r.top)/r.height*100};draft.style.display='block';draft.value='';draft.focus()};
+  draft.onkeydown=function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();var t=draft.value.trim();if(t&&pend){st[cur].c.push({x:pend.x,y:pend.y,t:t});pend=null;draft.style.display='none';rst();rc();rs();pg()}}};
+  function sv(v){st[cur].v=v;rs();rc();pg()}
+  document.getElementById('scrApp').onclick=function(){sv('a')};document.getElementById('scrReq').onclick=function(){sv('r')};
+  document.getElementById('scrMode').onclick=function(e){cm=!cm;e.target.classList.toggle('on',cm);rst()};
+  function rc(){var v=st[cur].v;vd.className='scr-v '+(v==='a'?'ok':v==='r'?'warn':'');vd.textContent=v==='a'?'approved':v==='r'?'changes requested':'unreviewed';var c=st[cur].c;cs.innerHTML=c.length?c.map(function(x,i){return '<div class="scr-cm"><span class="n">'+(i+1)+'</span><span style="flex:1">'+x.t.replace(/</g,'&lt;')+'</span><span class="x" data-i="'+i+'">✕</span></div>'}).join(''):'<div class="scr-empty">No comments yet.<br>Click the screen to drop a pin.</div>';[].forEach.call(cs.querySelectorAll('.x'),function(d){d.onclick=function(){st[cur].c.splice(+d.dataset.i,1);sel=null;rst();rc();rs();pg()}})}
+  function pg(){var d=st.filter(function(s){return s.v}).length;document.getElementById('scrPg').textContent=d+'/'+S.length;document.getElementById('scrPb').style.width=(d/S.length*100)+'%'}
+  document.getElementById('scrCopy').onclick=function(){var o='PROTOTYPE REVIEW FEEDBACK — '+APP+'\\n\\n';S.forEach(function(s,i){var x=st[i];if(!x.v&&!x.c.length)return;o+='### '+s.name+' ('+(s.role||'')+') — '+(x.v==='a'?'APPROVE':x.v==='r'?'REQUEST CHANGES':'commented')+'\\n';x.c.forEach(function(c,n){o+='  '+(n+1)+'. '+c.t+'\\n'});o+='\\n'});navigator.clipboard.writeText(o).then(function(){var b=document.getElementById('scrCopy'),t=b.textContent;b.textContent='✓ Copied — paste into /author-refine';setTimeout(function(){b.textContent=t},2200)})};
+  document.getElementById('scrReset').onclick=function(){if(confirm('Clear all feedback?')){st.forEach(function(s){s.v=null;s.c=[]});sl(cur);pg()}};
+  rf();rs();sl(0);pg();
+  })();</script>`;
+}
 
 // minimal, dependency-free markdown → HTML (headings, lists, tables, bold/italic/code, quotes, hr, links)
 function mdToHtml(md) {
@@ -455,7 +543,14 @@ const pageItems = pages.map((pg) => item(`p-${slug(pg.name)}`, "page", pg.name, 
 const navItem = `<h3 id="nav-h">Navigation</h3>${item("nav-all", "nav", "Navigation", null, `<p class="desc">The left-nav each role sees (chips = who it's visible to).</p>${navMock()}`)}`;
 // side-nav to jump to any page (+ the Navigation block)
 const pageNav = `<nav class="dnav">${pages.map((pg) => `<a class="dnav-link" href="#p-${slug(pg.name)}" data-target="p-${slug(pg.name)}">${esc(pg.name)}<span class="dnav-ty">${esc(pg.role || "page")}</span></a>`).join("")}<a class="dnav-link" href="#nav-h" data-target="nav-all">Navigation<span class="dnav-ty">menus</span></a></nav>`;
-const sPages = `<div class="datawrap">${pageNav}<div class="datalist">${pageItems}</div></div>${navItem}`;
+const wirePages = `<div class="datawrap">${pageNav}<div class="datalist">${pageItems}</div></div>`;
+const sPages = SCREENS.length
+  ? `<h3 id="screens-h">Screens — review the real prototype</h3>
+     <p class="desc">The actual generated screens. Filter by role, click the canvas to drop a comment pin, mark each Approve / Request changes, then <b>Copy feedback → <code>/author-refine</code></b>.</p>
+     ${screensReview(SCREENS)}
+     <details style="margin-top:18px"><summary style="cursor:pointer;color:var(--muted,#6b7280)">Wireframe layout &amp; page structure</summary>${wirePages}</details>
+     ${navItem}`
+  : `${wirePages}${navItem}`;
 
 // ── Decisions step: (1) open questions the USER must decide, as answerable cards; (2) the design
 // decision log parsed into scannable cards (one-line why, detail folded); raw log kept behind a toggle.
