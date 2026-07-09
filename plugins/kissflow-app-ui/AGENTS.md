@@ -311,7 +311,12 @@ A map needs a real Geolocation field and the leaflet deps (`npm i leaflet react-
 
 ## Layout & the shell
 Pages render inside `src/components/app-shell.jsx` (sidebar + header, mobile drawer, dark-mode
-toggle, theme control). Add nav entries to its `NAV_ITEMS`. Use responsive Tailwind grids
+toggle, theme control). Add nav entries to its `NAV_ITEMS` — and **ADAPT the shell to the app,
+don't just restyle it**: pick the nav pattern that fits (bottom tab-bar for consumer/mobile,
+sidebar for admin, plain header for single-purpose) and rework the brand/search/profile chrome.
+Likewise the record **`Form`** (`@/components/form`) is a starting point to adapt — sectioned +
+styled per record — **never a raw drop-in**. (Full rules: `design-guidelines.md` → "Adapt the
+shell + the record form".) Use responsive Tailwind grids
 (`grid gap-4 sm:grid-cols-2 lg:grid-cols-4`) — no dead space; primary visual full-width.
 
 See `agents/design-guidelines.md` for the full quality bar and `agents/theming.md` for the

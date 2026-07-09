@@ -40,7 +40,10 @@ decisions (the UI agent already made them), no data invention (the architect bou
   ratio/progress→`Progress` or recharts radial; timeline/feed→a custom list;
   form/create/edit→the **`Form`** component (`@/components/form` + `useForm`) — usually inside a
   `Dialog`/`Sheet`; it renders the model's actual fields + validation (only hand-build inputs for
-  a tiny 1–2 field quick action); overlay/menu→
+  a tiny 1–2 field quick action). **The Form is a functional STARTING POINT, not a finished form —
+  you MUST adapt it to this app + record: group/order fields into sections, hide the noise, pick
+  the right chrome (inline vs Dialog vs Sheet vs full page), and style it with the app's
+  tokens/spacing/section headers. Never ship the raw default Form drop-in.** overlay/menu→
   `DropdownMenu`/`Popover`/`Command`. Need something not installed? `npx shadcn@latest add <name>`.
 - **Tokens only** — style with semantic Tailwind utilities (`bg-card`, `text-foreground`,
   `text-muted-foreground`, `bg-primary`, `border-border`, `--chart-*`). Never hardcode hex
@@ -60,8 +63,12 @@ decisions (the UI agent already made them), no data invention (the architect bou
 - **Actions**: row/card click → open a record (`kf.app.get*().openForm(...)` / a detail
   `Dialog`); any create → a primary `Button` opening the create form. Wrap any section with
   a `gate` in `canAccess(id) ? <section/> : <NoAccess/>`.
-- **Nav**: add an entry to `NAV_ITEMS` in `src/components/app-shell.jsx` —
-  `{ to: "/<route>", label, icon: <LucideIcon> }` (import the lucide icon).
+- **Nav + shell**: add an entry to `NAV_ITEMS` in `src/components/app-shell.jsx` —
+  `{ to: "/<route>", label, icon: <LucideIcon> }` (import the lucide icon). **The shell itself is
+  a STARTING POINT to ADAPT, not keep — don't just recolour it. Restructure it to fit the app +
+  audience: bottom tab-bar for a consumer/mobile app, sidebar for an admin/ops tool, a plain
+  header for a single-purpose one; rework the brand/search/profile/role-switch chrome. Two apps
+  must have visibly different shells.** See `agents/design-guidelines.md` → "Adapt the shell + the record form".
 
 ## Verify
 Run `npm run build`. Fix any compile error before returning. Do not leave

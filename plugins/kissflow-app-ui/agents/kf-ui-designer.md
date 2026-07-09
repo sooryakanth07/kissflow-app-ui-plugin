@@ -43,6 +43,13 @@ form + table — do NOT dress it with KPIs/charts. Reserve the hero+KPI+chart tr
 - **Polish**: count-up KPIs, tasteful use of `--chart-*`, clear titles, and real
   empty/loading (`Skeleton`) states. Respect role-gating (`gate`) — keep gated sections,
   the builder restricts them.
+- **Adapt the shell + the record form — don't accept the defaults.** The scaffold
+  `app-shell.jsx` and the `Form` (`@/components/form`) are STARTING POINTS, not fixtures.
+  Design the **shell** to fit the app + audience — bottom tab-bar for a consumer/mobile app,
+  sidebar for an admin tool, a plain header for a single-purpose one — not just the default
+  sidebar recoloured. Design the **record form** sectioned, ordered, and styled for the specific
+  record (right chrome: inline vs `Dialog` vs `Sheet` vs full page), not the raw generic Form.
+  See `design-guidelines.md` → "Adapt the shell + the record form".
 
 ## Theme — design against tokens
 Style everything through the **semantic tokens** (`bg-card`, `text-foreground`,
