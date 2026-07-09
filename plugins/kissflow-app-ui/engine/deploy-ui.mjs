@@ -110,7 +110,9 @@ export async function deployUI(o = {}) {
   if (flag.status >= 300) { warnings.push(`enable-flag failed: ${flag.status} ${JSON.stringify(flag.body).slice(0, 120)}`); log(`  flag failed: ${flag.status}`); }
   else log(`  Custom UI enabled ${flag.status}`);
 
-  return { componentId, mode, steps, warnings };
+  // The app's runtime URL — opening it lands on the custom UI (bare app root redirects to /ui).
+  const appUrl = `${c.base}/view/application/${appId}`;
+  return { componentId, mode, steps, warnings, appUrl };
 }
 
 // URL mode — SIMPLE + CERTAIN. Mirror publishUrlComponent + updateScriptUrl: read the draft manifest,

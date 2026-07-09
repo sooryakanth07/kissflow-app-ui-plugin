@@ -58,19 +58,26 @@ set the app `DefaultPage`. Done — the app opens on native Kissflow pages.
    `KF_APP_ID` to the created app id.
 5. **Generate pages** from `lib/ui-spec.json`: `kf-ui-designer` → `kf-ui-builder` → `kf-ui-qa`
    (per-page, fanned out; QA fix-loop) → shadcn pages in `src/pages/` + nav in `app-shell.jsx`.
-6. **Build + deploy** as the app's Custom UI:
-   `npm run zip` (produces `<project>.zip`, `manifest Category:"Application"`), then
-   `node engine/cli.mjs deploy-ui <project>.zip --app <appId>` — creates/updates the
-   `Category:"Application"` custom component, publishes it Live, and sets
-   `_is_custom_ui_enabled: true` on the app.
-   **Note:** programmatic **zip auto-upload is not wired yet** — the zip path fails fast. Deploy EITHER
-   via **`--url <hosted-or-dev-URL>`** (recommended — point Custom UI at a hosted/dev URL, fully
-   implemented) OR upload the zip **manually** in App Builder → Settings → Custom UI. (Dev iteration:
-   point Custom UI at the `/run` dev-server URL — see `/deploy`.)
+6. **Go live on the LOCAL dev server + build the shippable zip.** This is the default finish —
+   enable Custom UI against the running dev server so the user sees the app immediately, and leave
+   the production zip for a manual upload:
+   a. **Start the dev server** in the **background** (the Custom UI iframe loads it):
+      `npm run dev` → HTTPS on `https://localhost:3000` (see `/run`). Give it a moment to boot.
+   b. **Enable Custom UI + point it at the dev server + open the app:**
+      `node engine/cli.mjs deploy-ui --app <appId> --url https://localhost:3000 --open`
+      — creates/updates the `Category:"Application"` custom component, publishes it Live, sets
+      `_is_custom_ui_enabled: true`, and **opens the app in the default browser**. The app now
+      renders straight from the running dev server (edit a page → hot-reload in Kissflow).
+   c. **Build the shippable bundle:** `npm run zip` → `<project>.zip`
+      (`manifest Category:"Application"`). **Leave it for the user to upload MANUALLY** — programmatic
+      zip upload isn't wired. To ship a self-contained build later, they upload the zip in
+      App Builder → Settings → Custom UI (Zip); until then the app runs off the dev-server URL.
+   ⚠️ The dev URL is `https://localhost` — the browser must trust the scaffold's local cert
+   (`cert/localhost.*`); accept it once if prompted, or the iframe stays blank.
 
 ## Finish
-Summarize: the app + data models + roles + workflows created (with the app id); the UI mode;
-and for custom, the deployed `Application` component + that `_is_custom_ui_enabled` is on. Tell
-the user to open the app inside Kissflow — the SDK initializes and (custom) the shadcn UI renders
-with its widgets reading real data. Record any preference the user corrected in
-`lib/kf-preferences.md` so the next run matches their taste.
+Summarize: the app + data models + roles + workflows created (with the app id); the UI mode; and
+for custom, that **Custom UI is enabled + pointed at the local dev server** and the app was
+**opened in the browser** (keep `npm run dev` running to see it), plus `<project>.zip` is ready for
+a **manual** production upload (Settings → Custom UI → Zip). Record any preference the user
+corrected in `lib/kf-preferences.md` so the next run matches their taste.

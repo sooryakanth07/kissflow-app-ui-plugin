@@ -15,8 +15,13 @@ Workflow — ask the target first:
 
 Steps:
 
-1. **Dev target** → don't zip. Make sure the dev server is running (`/run`), and tell
-   the user to set that HTTPS URL as the app's **Custom UI** in Kissflow. Skip to step 3.
+1. **Dev target** → don't zip. Make sure the dev server is running (`/run`, `https://localhost:3000`),
+   then enable Custom UI against it and open the app in one shot:
+   ```bash
+   node engine/cli.mjs deploy-ui --app <appId> --url https://localhost:3000 --open
+   ```
+   This points the app's Custom UI at the dev server, sets `_is_custom_ui_enabled`, and (`--open`)
+   launches the app in the default browser. Skip to step 3.
 
    **Prod target** → build + zip:
    ```bash

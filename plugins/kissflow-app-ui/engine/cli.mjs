@@ -160,16 +160,16 @@ try {
   }
 
   if (cmd === "deploy-ui") {
-    // node cli.mjs deploy-ui <zipPath> --app <appId> [--name "App UI"] [--url <devUrl>]
+    // node cli.mjs deploy-ui <zipPath> --app <appId> [--name "App UI"] [--url <devUrl>] [--open]
     // Deploys the built React zip (or a dev URL) as the app's Application custom component + enables Custom UI.
     const appId = flag("--app");
     const url = flag("--url");
     const name = flag("--name");
     const zipPath = arg && !arg.startsWith("--") ? arg : undefined;
     if (!appId || (!zipPath && !url)) {
-      console.error("usage: node cli.mjs deploy-ui <zipPath> --app <appId> [--name \"App UI\"] [--url <devUrl>]");
+      console.error("usage: node cli.mjs deploy-ui <zipPath> --app <appId> [--name \"App UI\"] [--url <devUrl>] [--open]");
       console.error("  ZIP mode : node cli.mjs deploy-ui dist/app-ui.zip --app APP123   (upload+trigger+poll — blob upload is TODO(live-verify))");
-      console.error("  URL mode : node cli.mjs deploy-ui --app APP123 --url https://dev.example.com/app-ui   (simple, reliable — no blob upload)");
+      console.error("  URL mode : node cli.mjs deploy-ui --app APP123 --url https://localhost:3000 --open   (simple, reliable — no blob upload; --open launches the app)");
       console.error("  requires env: KISSFLOW_ACCOUNT_ID/API_KEY/API_SECRET (or KF_*) + KISSFLOW_DOMAIN/KF_DOMAIN");
       process.exit(1);
     }
@@ -179,7 +179,18 @@ try {
     console.log("\n=== DEPLOY-UI REPORT ===");
     console.log(`component id: ${rep.componentId}`);
     console.log(`mode: ${rep.mode}`);
+    console.log(`app url: ${rep.appUrl}`);
     if (rep.warnings.length) { console.log("warnings:"); rep.warnings.forEach((w) => console.log("  • " + w)); }
+    // --open: launch the app in the default browser (platform-aware). Best-effort — never fatal.
+    if (hasFlag("--open") && rep.appUrl) {
+      const opener = process.platform === "darwin" ? "open" : process.platform === "win32" ? "cmd" : "xdg-open";
+      const oArgs = process.platform === "win32" ? ["/c", "start", "", rep.appUrl] : [rep.appUrl];
+      try {
+        const { spawn } = await import("node:child_process");
+        spawn(opener, oArgs, { stdio: "ignore", detached: true }).unref();
+        console.log(`opened ${rep.appUrl} in your default browser`);
+      } catch (e) { console.log(`could not open the browser (${e.message}) — visit ${rep.appUrl}`); }
+    }
     process.exit(0);
   }
 
