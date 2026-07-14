@@ -9,8 +9,9 @@ Dinesh's **authoring** pipeline (data models, roles, workflows) and our **custom
 (a shadcn React app deployed as the app's `Application` component). The user picks the UI mode.
 
 Pre-req: creds exported — `KISSFLOW_SUBDOMAIN`, `KISSFLOW_ACCOUNT_ID`, `KISSFLOW_API_KEY`,
-`KISSFLOW_API_SECRET` (Step 0 stages the engine itself). If creds are missing, tell the user to run
-`/author-setup` and stop.
+`KISSFLOW_API_SECRET` (Step 0 stages the engine itself). Also set the **`KISSFLOW_PROD_*`** creds so
+the app shell is created in prod and replicated to dev (see `/author-setup`); without them the app is
+created directly in the current account. If creds are missing, tell the user to run `/author-setup` and stop.
 
 ## Step 0 — Set up the workspace + pick the UI mode (FIRST, before any build work)
 

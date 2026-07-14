@@ -56,19 +56,26 @@ export function flowGrant(flowType, { editable = true, admin = false } = {}) {
   return { family: "form", role: editable ? "Member" : "Viewer", permission: editable ? ["Delete"] : [] };
 }
 
-export function clientFromEnv() {
-  // Accept both the engine's KISSFLOW_* names and the UI-tooling KF_* names (scaffold + .env).
-  const env = process.env;
-  const acc = env.KISSFLOW_ACCOUNT_ID || env.KF_ACCOUNT_ID;
-  const key = env.KISSFLOW_API_KEY || env.KF_ACCESS_KEY_ID;
-  const secret = env.KISSFLOW_API_SECRET || env.KF_ACCESS_KEY_SECRET;
-  // Host: a full-domain override (KISSFLOW_DOMAIN/KF_DOMAIN) wins — needed for non-*.kissflow.com
-  // hosts (QA/self-hosted). Otherwise fall back to <subdomain>.kissflow.com.
-  const domain = env.KISSFLOW_DOMAIN || env.KF_DOMAIN;
-  const sub = env.KISSFLOW_SUBDOMAIN || env.KF_SUBDOMAIN;
+// Read Kissflow REST creds from env for ONE environment. prefix "" = the default/dev account
+// (the engine's KISSFLOW_* names or the UI-tooling KF_* names); prefix "PROD_" = the production
+// account. App creation is triggered against prod (Kissflow replicates it to dev); all other work
+// runs against dev.
+function readCreds(env, prefix = "") {
+  const p = prefix;
+  const acc = env[`KISSFLOW_${p}ACCOUNT_ID`] || env[`KF_${p}ACCOUNT_ID`];
+  const key = env[`KISSFLOW_${p}API_KEY`] || env[`KF_${p}ACCESS_KEY_ID`];
+  const secret = env[`KISSFLOW_${p}API_SECRET`] || env[`KF_${p}ACCESS_KEY_SECRET`];
+  // Host: a full-domain override (…DOMAIN) wins — needed for non-*.kissflow.com hosts
+  // (QA/self-hosted). Otherwise fall back to <subdomain>.kissflow.com.
+  const domain = env[`KISSFLOW_${p}DOMAIN`] || env[`KF_${p}DOMAIN`];
+  const sub = env[`KISSFLOW_${p}SUBDOMAIN`] || env[`KF_${p}SUBDOMAIN`];
   if (!acc || !key || !secret || (!domain && !sub))
-    throw new Error("Set KISSFLOW_ACCOUNT_ID/API_KEY/API_SECRET (or KF_ACCOUNT_ID/KF_ACCESS_KEY_ID/KF_ACCESS_KEY_SECRET) and KISSFLOW_DOMAIN/KF_DOMAIN (or KISSFLOW_SUBDOMAIN) in env");
+    throw new Error(`Set KISSFLOW_${p}ACCOUNT_ID/API_KEY/API_SECRET (or KF_${p}ACCOUNT_ID/KF_${p}ACCESS_KEY_ID/KF_${p}ACCESS_KEY_SECRET) and KISSFLOW_${p}DOMAIN/KF_${p}DOMAIN (or KISSFLOW_${p}SUBDOMAIN) in env`);
   const host = domain ? domain.replace(/^https?:\/\//, "").replace(/\/+$/, "") : `${sub}.kissflow.com`;
+  return { acc, host, key, secret };
+}
+
+function buildClient({ acc, host, key, secret }) {
   const base = `https://${host}`;
   const headers = { "X-Access-Key-Id": key, "X-Access-Key-Secret": secret, "Content-Type": "application/json" };
   // RESILIENT call: retry transient network failures + 5xx/429 with backoff, and NEVER throw —
@@ -107,9 +114,46 @@ export function clientFromEnv() {
     // roles associate via BODY _application_id (NOT the query param flows use); list: /app_role/2/{acc}/list?_application_id=
     createRole: (Name, appId) => call("POST", `/app_role/2/${acc}/`, { Name, _application_id: appId }),
     explore: () => call("GET", `/flow/2/${acc}/explore`),
+    // app existence checks (used to await the prod→dev replication): a direct GET-by-id, plus the
+    // app list as a fallback for hosts that don't expose GET application/{id}.
+    getApp: (id) => call("GET", `/flow/2/${acc}/application/${id}`),
+    listApps: () => call("POST", `/flow/2/${acc}/explore/?exclude_app_flows=true`, {}),
     deleteFlow: (type, id) => call("DELETE", `/flow/2/${acc}/${type}/${id}`),
     deleteApp: (id) => call("DELETE", `/flow/2/${acc}/application/${id}`),
   };
+}
+
+// The default client talks to the DEV account (KISSFLOW_*/KF_* names) — used for everything except
+// creating the app shell.
+export function clientFromEnv() { return buildClient(readCreds(process.env, "")); }
+// The PROD client — used ONLY to create the app shell, which Kissflow then replicates to dev.
+export function clientForProd() { return buildClient(readCreds(process.env, "PROD_")); }
+// Are prod creds configured? Absent ⇒ single-account mode (create the app in the current account).
+function prodCredsPresent(env = process.env) {
+  return Boolean(
+    (env.KISSFLOW_PROD_ACCOUNT_ID || env.KF_PROD_ACCOUNT_ID) &&
+    (env.KISSFLOW_PROD_API_KEY || env.KF_PROD_ACCESS_KEY_ID) &&
+    (env.KISSFLOW_PROD_API_SECRET || env.KF_PROD_ACCESS_KEY_SECRET) &&
+    (env.KISSFLOW_PROD_DOMAIN || env.KF_PROD_DOMAIN || env.KISSFLOW_PROD_SUBDOMAIN || env.KF_PROD_SUBDOMAIN),
+  );
+}
+export function maybeProdClient() { return prodCredsPresent() ? clientForProd() : null; }
+
+// After the app is created in PROD, Kissflow replicates it to dev with the SAME _id after a short
+// delay. Poll dev until the app exists there before building anything into it. (createApp on prod
+// alone is assumed to trigger replication; if a prod publish turns out to be required, publish
+// before calling this — the timeout below then surfaces the missing replication clearly.)
+async function waitForAppInDev(dev, appId, { timeoutMs = 120000, intervalMs = 3000 } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  for (let n = 1; Date.now() < deadline; n++) {
+    const byId = await dev.getApp(appId);
+    if (byId.status >= 200 && byId.status < 300) return true;
+    const list = await dev.listApps(); // fallback if GET application/{id} isn't exposed
+    if (Array.isArray(list.body) && list.body.some((a) => a?._id === appId)) return true;
+    if (n === 1 || n % 3 === 0) console.log(`  … waiting for app ${appId} to replicate to dev (check ${n})`);
+    await new Promise((s) => setTimeout(s, intervalMs));
+  }
+  return false;
 }
 
 // Replace every occurrence of my generated ids with server ids (longest-first to avoid
@@ -165,12 +209,38 @@ export async function applyIR(ir, opts = {}) {
   // onto an already-built app). Reuse mode takes a caller-supplied genToServer so it never depends on
   // the ambiguous account-wide explore (which can't tell two same-named flows from different apps apart).
   const appName = ir.app?.name || "Untitled App";
+  const POLL = { timeoutMs: 120000, intervalMs: 3000 };
   let appId;
-  if (opts.reuse?.appId || ckpt.appId) { appId = opts.reuse?.appId || ckpt.appId; report.app = appId; report.reused = true; log(`reuse app ${appId}${ckpt.appId && !opts.reuse?.appId ? " (checkpoint)" : ""}`); }
-  else {
-    const ra = await c.createApp(appName, ir.app?.description || "");
-    if (ra.status >= 300 || !ra.body?._id) { report.errors.push(`app create failed: ${ra.status}`); return report; }
-    appId = ra.body._id; report.app = appId; log(`app ${appId}`);
+  let appIsInDev = false;
+  if (opts.reuse?.appId || ckpt.appId) {
+    appId = opts.reuse?.appId || ckpt.appId; report.app = appId; report.reused = true;
+    appIsInDev = ckpt.appInDev ?? true;
+    log(`reuse app ${appId}${ckpt.appId && !opts.reuse?.appId ? " (checkpoint)" : ""}`);
+    // Resumed after a prod-create that never confirmed dev replication → wait for it now.
+    if (ckpt.appId && !opts.reuse?.appId && !ckpt.appInDev) {
+      if (!(await waitForAppInDev(c, appId, POLL))) { report.errors.push(`app ${appId} did not replicate to dev within ${POLL.timeoutMs}ms`); return report; }
+      appIsInDev = true;
+    }
+  } else {
+    // APP CREATION is triggered against PROD; Kissflow replicates it to dev with the SAME _id. Only
+    // the shell is born in prod — every flow/page/role below is built in dev (the client `c`).
+    const prod = maybeProdClient();
+    if (prod) {
+      const ra = await prod.createApp(appName, ir.app?.description || "");
+      if (ra.status >= 300 || !ra.body?._id) { report.errors.push(`prod app create failed: ${ra.status}`); return report; }
+      appId = ra.body._id; report.app = appId; report.appCreatedInProd = true;
+      log(`app ${appId} created in prod (${prod.base}) — awaiting dev replication`);
+      // Checkpoint the id BEFORE the wait so a crash mid-replication resumes without re-creating in prod.
+      if (stateFile) { try { writeFileSync(stateFile + ".tmp", JSON.stringify({ appId, appInDev: false })); renameSync(stateFile + ".tmp", stateFile); } catch { /* best-effort */ } }
+      if (!(await waitForAppInDev(c, appId, POLL))) { report.errors.push(`app ${appId} did not replicate to dev within ${POLL.timeoutMs}ms`); return report; }
+      appIsInDev = true; log(`app ${appId} present in dev`);
+    } else {
+      // No prod creds → single-account mode: create directly in the configured (dev) account.
+      console.warn("no PROD creds (KISSFLOW_PROD_*/KF_PROD_*) set — creating the app in the current account, skipping the prod-first replication flow");
+      const ra = await c.createApp(appName, ir.app?.description || "");
+      if (ra.status >= 300 || !ra.body?._id) { report.errors.push(`app create failed: ${ra.status}`); return report; }
+      appId = ra.body._id; report.app = appId; appIsInDev = true; log(`app ${appId}`);
+    }
   }
 
   // roles — REUSE existing app roles by name (every app ships default Admin + User; don't dup them)
@@ -206,7 +276,7 @@ export async function applyIR(ir, opts = {}) {
   const persist = () => {
     if (!stateFile) return;
     try {
-      writeFileSync(stateFile + ".tmp", JSON.stringify({ appId, genToServer, pageServerByName, published: [...published], listItemsDone: [...listItemsDone], caseflowDone: [...caseflowDone], membersDone: [...membersDone], appPublished: report.appPublished || false }));
+      writeFileSync(stateFile + ".tmp", JSON.stringify({ appId, appInDev: appIsInDev, genToServer, pageServerByName, published: [...published], listItemsDone: [...listItemsDone], caseflowDone: [...caseflowDone], membersDone: [...membersDone], appPublished: report.appPublished || false }));
       renameSync(stateFile + ".tmp", stateFile);
     } catch { /* checkpoint is best-effort — never break apply */ }
   };

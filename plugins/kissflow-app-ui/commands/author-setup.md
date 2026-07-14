@@ -81,6 +81,22 @@ export KISSFLOW_ACCOUNT_ID=<your-account-id>
 export KISSFLOW_API_KEY=<access-key-id>
 export KISSFLOW_API_SECRET=<access-key-secret>
 ```
+
+### App creation happens in PROD (replicated to dev) — set `KF_PROD_*` too
+Kissflow creates an app in **production**, then auto-replicates it to dev (same app id, after a few
+seconds). The engine mirrors this: it creates the **app shell** against prod, waits for it to appear
+in dev, then builds every flow/page/role/permission in **dev**. So alongside the dev creds above,
+provide the **prod** account's creds (only the domain, account id, and access keys differ):
+```bash
+export KISSFLOW_PROD_SUBDOMAIN=<prod-subdomain>   # or KISSFLOW_PROD_DOMAIN=<full host>
+export KISSFLOW_PROD_ACCOUNT_ID=<prod-account-id>
+export KISSFLOW_PROD_API_KEY=<prod-access-key-id>
+export KISSFLOW_PROD_API_SECRET=<prod-access-key-secret>
+```
+(The `KF_PROD_ACCOUNT_ID`/`KF_PROD_ACCESS_KEY_ID`/`KF_PROD_ACCESS_KEY_SECRET`/`KF_PROD_DOMAIN`
+aliases work too.) **If `KF_PROD_*` is not set**, the engine falls back to creating the app directly
+in the current (dev) account — fine for a single-account/QA host, but not the real prod-first flow.
+
 Always **dry-run** first and target a **dev** app; the pipeline never auto-publishes to prod.
 
 ## 4. Go

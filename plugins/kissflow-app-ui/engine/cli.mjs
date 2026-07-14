@@ -107,7 +107,12 @@ try {
     // continues instead of re-publishing. Delete apply-state.json to force a clean re-apply.
     const stateFile = join(dirname(arg), "apply-state.json");
     if (existsSync(stateFile)) console.log(`resuming from checkpoint ${stateFile} (delete it to start clean)`);
-    console.log(`\nAPPLY (LIVE) — ${ir.app?.name} → ${(process.env.KISSFLOW_DOMAIN || process.env.KF_DOMAIN) || `${process.env.KISSFLOW_SUBDOMAIN}.kissflow.com`}`);
+    const devHost = (process.env.KISSFLOW_DOMAIN || process.env.KF_DOMAIN) || `${process.env.KISSFLOW_SUBDOMAIN || process.env.KF_SUBDOMAIN}.kissflow.com`;
+    const prodHost = (process.env.KISSFLOW_PROD_DOMAIN || process.env.KF_PROD_DOMAIN) || (process.env.KISSFLOW_PROD_SUBDOMAIN || process.env.KF_PROD_SUBDOMAIN ? `${process.env.KISSFLOW_PROD_SUBDOMAIN || process.env.KF_PROD_SUBDOMAIN}.kissflow.com` : "");
+    console.log(`\nAPPLY (LIVE) — ${ir.app?.name} → ${devHost}`);
+    // App creation is triggered in PROD (Kissflow replicates it to dev); everything else is built in dev.
+    if (prodHost) console.log(`  app shell will be created in prod (${prodHost}) → awaited in dev (${devHost})`);
+    else console.log(`  (no PROD creds set — app will be created directly in ${devHost})`);
     const rep = await applyIR(ir, { stateFile });
     console.log("\n=== REPORT ===");
     console.log(`app: ${rep.app}`);
