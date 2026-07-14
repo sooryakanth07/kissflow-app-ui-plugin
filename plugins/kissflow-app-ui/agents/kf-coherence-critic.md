@@ -26,10 +26,6 @@ actually accomplish their journey, end to end, with what was built? You judge wh
    scope.
 4. **Orphans & dead ends** — no flow nobody surfaces, no field nobody reads/writes, no status with no
    exit, no report bound to no tile, no role with no purpose.
-4b. **Actor-role staffing** — every workflow step's actor role must have **≥1 assignable member** at
-   go-live. An empty role → "no assignee" → the first `submit` fails ("There is no assignee for the
-   next step …"), so the journey is not end-to-end satisfiable even though the role exists. Flag any
-   step routed through an unstaffed role and recommend staffing it or a fallback assignee.
 5. **Outcome-level completeness matrix** — build a matrix of (persona journey × required capability:
    data exists? workflow path exists? permission allows? landing+nav reaches it? dashboard surfaces
    it?). Every journey must be fully satisfiable; flag any cell that is missing.

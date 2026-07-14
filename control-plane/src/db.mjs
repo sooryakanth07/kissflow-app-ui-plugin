@@ -52,6 +52,9 @@ function memoryDb() {
     async getDevEnv(id) { return devEnvs.get(id) || null; },
     async listDevEnvsForUser(sub) { return [...devEnvs.values()].filter((e) => e.owner_sub === sub); },
     async setProjectDevEnv(projectId, devEnvId) { const p = projects.get(projectId); if (p) p.dev_env_id = devEnvId; },
+    async projectsUsingEnv(devEnvId) { return [...projects.values()].filter((p) => p.dev_env_id === devEnvId).map((p) => ({ id: p.id, name: p.name })); },
+    async deleteDevEnv(id) { return devEnvs.delete(id) ? 1 : 0; },
+    async updateDevEnv(id, patch) { const e = devEnvs.get(id); if (!e) return null; for (const k of ["name", "subdomain", "account_id"]) if (patch[k] != null) e[k] = patch[k]; return e; },
     async markConnected(projectId, by) { const p = projects.get(projectId); if (p) { p.last_connect_at = new Date().toISOString(); p.last_connect_by = by || null; } },
     // ── memory pool (hive) ──────────────────────────────────────────────────
     async memUpsert(row) {
@@ -120,6 +123,12 @@ function pgDb(url) {
     async getDevEnv(id) { return one(await q(`SELECT * FROM dev_envs WHERE id=$1`, [id])); },
     async listDevEnvsForUser(sub) { return (await q(`SELECT * FROM dev_envs WHERE owner_sub=$1 ORDER BY created_at`, [sub])).rows; },
     async setProjectDevEnv(projectId, devEnvId) { await q(`UPDATE projects SET dev_env_id=$2 WHERE id=$1`, [projectId, devEnvId]); },
+    async projectsUsingEnv(devEnvId) { return (await q(`SELECT id, name FROM projects WHERE dev_env_id=$1`, [devEnvId])).rows; },
+    async deleteDevEnv(id) { return (await q(`DELETE FROM dev_envs WHERE id=$1`, [id])).rowCount; },
+    async updateDevEnv(id, patch) {
+      return one(await q(`UPDATE dev_envs SET name=COALESCE($2,name), subdomain=COALESCE($3,subdomain), account_id=COALESCE($4,account_id) WHERE id=$1 RETURNING *`,
+        [id, patch.name ?? null, patch.subdomain ?? null, patch.account_id ?? null]));
+    },
     async markConnected(projectId, by) { await q(`UPDATE projects SET last_connect_at=now(), last_connect_by=$2 WHERE id=$1`, [projectId, by || null]); },
     // ── memory pool (hive) — pgvector ───────────────────────────────────────
     async memUpsert(row) {

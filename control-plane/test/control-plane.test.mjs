@@ -114,6 +114,28 @@ async function main() {
   const otherSync = await api("/memory/sync", { tok: created.config.apiToken }); // Carol's project
   ok(otherSync.json.counts.project === 0 && otherSync.json.counts.global === 1, "org partition holds: another project sees global canon but NOT Alice's app memory");
 
+  console.log("\n─── OWNER EDITS a dev environment (rename + credential rotation) ───");
+  ok((await api(`/dev-envs/${envMade.id}`, { m: "PUT", tok: bTok, body: { name: "hijack" } })).status === 403, "non-owner cannot edit a dev environment");
+  const ren = await api(`/dev-envs/${envMade.id}`, { m: "PUT", tok: aTok, body: { name: "LCNC dev (renamed)" } });
+  ok(ren.json.ok && ren.json.devEnv.name === "LCNC dev (renamed)" && ren.json.rotated === false, "rename without touching creds (rotated:false)");
+  ok((await api("/dev-envs", { m: "POST", tok: aTok, body: { name: "half", subdomain: "dev-x", apiKey: "AK_only" } })).status === 400, "creating an env WITHOUT the secret is rejected (no more half-stored creds)");
+  ok((await api(`/dev-envs/${envMade.id}`, { m: "PUT", tok: aTok, body: { apiKey: "AK_lonely" } })).status === 400, "rotating with only one half of the pair is rejected");
+  const rot = await api(`/dev-envs/${envMade.id}`, { m: "PUT", tok: aTok, body: { apiKey: "AK_env2", apiSecret: "AS_env_secret_v2" } });
+  ok(rot.json.rotated === true, "posting a new key pair rotates credentials");
+  const cu3 = (await api(`/projects/${proj2.id}/connect-url`, { m: "POST", tok: aTok })).json;
+  const att3 = await connect({ token: cu3.url, base: BASE });
+  ok(att3.config.kissflow?.apiSecret === "AS_env_secret_v2" && att3.config.kissflow?.subdomain === "dev-lcncdemo", "next connect serves the ROTATED secret with the kept subdomain");
+
+  console.log("\n─── OWNER DELETES: dev environments (guarded) and projects ───");
+  ok((await api(`/dev-envs/${envMade.id}`, { m: "DELETE", tok: bTok })).status === 403, "non-owner cannot delete a dev environment");
+  const inUse = await api(`/dev-envs/${envMade.id}`, { m: "DELETE", tok: aTok });
+  ok(inUse.status === 409 && /in use/.test(inUse.json.error), "env delete is blocked while projects link it (409 lists them)");
+  ok((await api(`/projects/${proj2.id}`, { m: "DELETE", tok: bTok })).status === 403, "non-owner cannot delete a project");
+  ok((await api(`/projects/${proj2.id}`, { m: "DELETE", tok: aTok })).json.ok === true, "owner deletes the project (members/versions cascade)");
+  ok((await api(`/p/${proj2.id}`, { tok: aTok })).status === 404, "deleted project is gone");
+  const envDel = await api(`/dev-envs/${envMade.id}`, { m: "DELETE", tok: aTok });
+  ok(envDel.json.ok === true && !(await api("/dev-envs", { tok: aTok })).json.devEnvs.some((e) => e.id === envMade.id), "env deletes cleanly once unlinked (secret removed best-effort)");
+
   console.log("\n─── SUSPICION CHECK: impossibility claims quarantine until owner-confirmed ───");
   const imp = await api("/memory/write", { m: "POST", tok: projTok, body: { scope: "app", app: "Refunds_A00", text: "Parallel branches are impossible in Kissflow workflows — the API cannot express them." } });
   ok(imp.json.verdict === "quarantined", "a session's impossibility claim is auto-detected and quarantined");

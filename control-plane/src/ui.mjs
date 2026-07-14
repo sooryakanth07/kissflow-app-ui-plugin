@@ -156,7 +156,7 @@ export function dashboardPage(user, projects, devEnvs = []) {
     ? `<div class="grid">${cards}</div>`
     : `<div class="empty"><div class="big">✦</div>No projects yet.<br>Create your first one to get a Cowork connect link.<div style="margin-top:16px"><button class="btn btn-primary" onclick="openNew()">＋ New project</button></div></div>`;
   const envRows = devEnvs.length
-    ? `<ul class="list">${devEnvs.map((e) => `<li><span class="mrow"><span class="avatar">${esc((e.subdomain || "?").slice(0, 2).toUpperCase())}</span>${esc(e.name)} <span style="color:var(--muted);margin-left:8px" class="mono">${esc(e.subdomain)}</span></span><span style="color:var(--muted);font-size:12.5px">${fmtDate(e.created_at)}</span></li>`).join("")}</ul>`
+    ? `<ul class="list">${devEnvs.map((e) => `<li><span class="mrow"><span class="avatar">${esc((e.subdomain || "?").slice(0, 2).toUpperCase())}</span>${esc(e.name)} <span style="color:var(--muted);margin-left:8px" class="mono">${esc(e.subdomain)}</span> ${e.credState === "ok" ? `<span class="chip mint" style="margin-left:8px">key ••${esc(e.keyHint)}</span>` : e.credState === "partial" ? `<span class="chip" style="margin-left:8px;background:rgba(255,77,146,.14);color:var(--hot);border-color:rgba(255,77,146,.3)">⚠ secret missing</span>` : `<span class="chip viewer" style="margin-left:8px">no creds</span>`}</span><span style="display:flex;align-items:center;gap:8px"><span style="color:var(--muted);font-size:12.5px">${fmtDate(e.created_at)}</span><button class="btn" style="padding:6px 10px;font-size:12px" title="Edit environment" onclick="editEnv('${esc(e.id)}','${esc(e.name)}','${esc(e.subdomain)}','${esc(e.account_id || "")}','${esc(e.keyHint || "")}','${esc(e.credState || "none")}')">✎</button><button class="btn" style="padding:6px 10px;font-size:12px;color:var(--hot)" title="Delete environment" onclick="delEnv('${esc(e.id)}','${esc(e.name)}')">✕</button></span></li>`).join("")}</ul>`
     : `<div class="empty sm">No dev environments yet — add your Kissflow dev account once, reuse it for every project.</div>`;
   const envOptions = devEnvs.map((e) => `<option value="${esc(e.id)}">${esc(e.name)} (${esc(e.subdomain)})</option>`).join("");
   return head("Projects") + topbar(user) + `<div class="wrap">
@@ -173,26 +173,51 @@ export function dashboardPage(user, projects, devEnvs = []) {
       <select id="npEnv" style="width:100%;margin-top:12px;font:inherit;font-size:14px;padding:11px 13px;border:1px solid var(--line2);border-radius:10px;background:var(--inputbg);color:var(--ink)">
         ${envOptions}<option value="">— set dev environment later —</option></select>
       <div class="actions"><button class="btn" onclick="closeNew()">Cancel</button><button class="btn btn-primary" onclick="createProject()">Create project</button></div></div></div>
-    <div class="modal-bg" id="envModal"><div class="modal"><h3>Add dev environment</h3><p>Your Kissflow dev account — stored once, reused across projects.</p>
+    <div class="modal-bg" id="envDelModal"><div class="modal"><h3 id="envDelTitle">Delete environment?</h3>
+      <p>Its credentials are removed from Secret Manager. Projects still linked to it will block the delete.</p>
+      <div class="actions"><button class="btn" onclick="document.getElementById('envDelModal').classList.remove('on')">Cancel</button><button class="btn" style="background:var(--hot);border:none;color:#fff" onclick="delEnvGo()">Delete</button></div></div></div>
+    <div class="modal-bg" id="envModal"><div class="modal"><h3 id="envModalTitle">Add dev environment</h3><p id="envModalHint">Your Kissflow dev account — stored once, reused across projects.</p>
       <input id="deName" placeholder="name (e.g. LCNC Demo dev)" autocomplete="off">
       <input id="deSub" placeholder="subdomain (e.g. dev-mycompany)" autocomplete="off">
       <input id="deAcc" placeholder="account id" autocomplete="off">
       <input id="deKey" placeholder="access key id" autocomplete="off">
       <input id="deSec" placeholder="access key secret" type="password" autocomplete="off">
-      <div class="actions"><button class="btn" onclick="closeEnv()">Cancel</button><button class="btn btn-primary" onclick="createEnv()">Save environment</button></div></div></div>
+      <div class="actions"><button class="btn" onclick="closeEnv()">Cancel</button><button class="btn btn-primary" id="envSaveBtn" onclick="saveEnv()">Save environment</button></div></div></div>
     <script>
     function openNew(){document.getElementById('newModal').classList.add('on');setTimeout(function(){document.getElementById('npName').focus()},50)}
     function closeNew(){document.getElementById('newModal').classList.remove('on')}
-    function openEnv(){document.getElementById('envModal').classList.add('on');setTimeout(function(){document.getElementById('deName').focus()},50)}
+    var editingEnv=null;
+    function setEnvField(id,v){document.getElementById(id).value=v||''}
+    function openEnv(){editingEnv=null;document.getElementById('envModalTitle').textContent='Add dev environment';document.getElementById('envModalHint').textContent='Your Kissflow dev account — stored once, reused across projects.';['deName','deSub','deAcc','deKey','deSec'].forEach(function(i){setEnvField(i,'')});document.getElementById('deKey').placeholder='access key id';document.getElementById('deSec').placeholder='access key secret';document.getElementById('envModal').classList.add('on');setTimeout(function(){document.getElementById('deName').focus()},50)}
+    function editEnv(id,name,sub,acc,hint,state){editingEnv=id;document.getElementById('envModalTitle').textContent='Edit '+name;
+      document.getElementById('envModalHint').textContent=state==='ok'
+        ? 'Credentials are stored securely and never displayed (current key ends in ••'+hint+'). Paste a new key pair to rotate, or leave both blank to keep them.'
+        : state==='partial'
+        ? '⚠ The stored credentials are INCOMPLETE (key ••'+hint+' has no secret) — paste the full key pair to fix this environment.'
+        : 'No credentials stored for this environment yet — paste an access key pair to set them.';
+      setEnvField('deName',name);setEnvField('deSub',sub);setEnvField('deAcc',acc);setEnvField('deKey','');setEnvField('deSec','');
+      document.getElementById('deKey').placeholder=hint?'access key id · current ••'+hint+' (blank = keep)':'access key id';
+      document.getElementById('deSec').placeholder=hint?'access key secret (blank = keep current)':'access key secret';
+      document.getElementById('envModal').classList.add('on');setTimeout(function(){document.getElementById('deName').focus()},50)}
     function closeEnv(){document.getElementById('envModal').classList.remove('on')}
     document.getElementById('newModal').addEventListener('click',function(e){if(e.target===this)closeNew()});
     document.getElementById('envModal').addEventListener('click',function(e){if(e.target===this)closeEnv()});
     async function createProject(){var name=document.getElementById('npName').value.trim();if(!name){toast('Enter a name');return}
       var env=document.getElementById('npEnv').value;
       try{var r=await api('/projects',env?{name:name,devEnvId:env}:{name:name});location.href='/p/'+r.project.id}catch(e){toast(e.message)}}
-    async function createEnv(){var v=function(id){return document.getElementById(id).value.trim()};
-      if(!v('deSub')||!v('deKey')){toast('Subdomain and access key are required');return}
+    async function saveEnv(){var v=function(id){return document.getElementById(id).value.trim()};
+      if(editingEnv){
+        if((v('deKey')||v('deSec'))&&!(v('deKey')&&v('deSec'))){toast('Rotate with the full key pair — id AND secret');return}
+        try{var r=await api('/dev-envs/'+editingEnv,{name:v('deName'),subdomain:v('deSub'),accountId:v('deAcc'),apiKey:v('deKey'),apiSecret:v('deSec')},'PUT');
+          toast(r.rotated?'Environment updated · credentials rotated':'Environment updated');setTimeout(function(){location.reload()},600)}catch(e){toast(e.message)}
+        return}
+      if(!v('deSub')||!v('deKey')||!v('deSec')){toast('Subdomain, access key id and secret are all required');return}
       try{await api('/dev-envs',{name:v('deName'),subdomain:v('deSub'),accountId:v('deAcc'),apiKey:v('deKey'),apiSecret:v('deSec')});toast('Dev environment saved');setTimeout(function(){location.reload()},600)}catch(e){toast(e.message)}}
+    var pendingEnv=null;
+    function delEnv(id,name){pendingEnv=id;document.getElementById('envDelTitle').textContent='Delete "'+name+'"?';document.getElementById('envDelModal').classList.add('on')}
+    async function delEnvGo(){
+      document.getElementById('envDelModal').classList.remove('on');
+      try{await api('/dev-envs/'+pendingEnv,null,'DELETE');toast('Environment deleted');setTimeout(function(){location.reload()},600)}catch(e){toast(e.message)}}
     </script>` + foot;
 }
 
@@ -251,7 +276,7 @@ export function connectApprovePage(user, code, projects, redirectUri, devEnvs = 
       if(!pendingProject){ // new-project path: create came back 409 with projectId — approve() stored it
         toast('Pick a project first');return}
       var v=function(id){return document.getElementById(id).value.trim()};
-      if(!v('deSub')||!v('deKey')){toast('Subdomain and access key are required');return}
+      if(!v('deSub')||!v('deKey')||!v('deSec')){toast('Subdomain, access key id and secret are all required');return}
       try{ await api('/projects/'+pendingProject+'/dev-env',{name:v('deName'),subdomain:v('deSub'),accountId:v('deAcc'),apiKey:v('deKey'),apiSecret:v('deSec')});
         document.getElementById('devModal').classList.remove('on'); approve({projectId:pendingProject});
       }catch(e){toast(e.message)}
@@ -294,7 +319,15 @@ export function projectPage(user, project, members, versions, devEnvs = [], link
 
       <div class="section"><h2><span class="ic">◇</span> Members</h2><ul class="list">${memRows}</ul>
         ${isOwner ? `<div class="field"><input id="memEmail" type="email" placeholder="teammate@company.com" onkeydown="if(event.key==='Enter')invite()"><select id="memRole"><option value="builder">builder</option><option value="viewer">viewer</option></select><button class="btn" onclick="invite()">Invite</button></div>` : ""}</div>
+
+      ${isOwner ? `<div class="section" style="border-color:rgba(255,77,146,.35)"><h2><span class="ic" style="color:var(--hot)">⌫</span> Danger zone</h2>
+        <div class="hint">Deleting removes the project, its members and its version list from appbuilder. The built Kissflow app, GCS artifacts, reusable dev environments and hive memories are NOT touched.</div>
+        <button class="btn" style="border-color:rgba(255,77,146,.5);color:var(--hot)" onclick="openDel()">Delete project…</button></div>` : ""}
     </div>
+    ${isOwner ? `<div class="modal-bg" id="delModal"><div class="modal"><h3>Delete ${esc(project.name)}?</h3>
+      <p>This is permanent for appbuilder (versions list, members, connect links). Type the project name to confirm.</p>
+      <input id="delName" placeholder="${esc(project.name)}" autocomplete="off" onkeydown="if(event.key==='Escape')closeDel()">
+      <div class="actions"><button class="btn" onclick="closeDel()">Cancel</button><button class="btn" style="background:var(--hot);border:none;color:#fff" onclick="delProject()">Delete project</button></div></div></div>` : ""}
     </div>
     <script>
     function showTab(name){document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('active',t.dataset.tab===name)});document.getElementById('panel-versions').hidden=name!=='versions';document.getElementById('panel-settings').hidden=name!=='settings';history.replaceState(null,'',name==='settings'?'#settings':location.pathname)}
@@ -302,5 +335,11 @@ export function projectPage(user, project, members, versions, devEnvs = [], link
     async function mkConnect(){try{var r=await api('/projects/${esc(project.id)}/connect-url');document.getElementById('cbox').style.display='flex';document.getElementById('curl').value=r.url;toast('Link valid 10 min · single use')}catch(e){toast(e.message)}}
     async function linkEnv(){try{await api('/projects/${esc(project.id)}/dev-env',{devEnvId:document.getElementById('envSel').value});toast('Dev environment linked');setTimeout(function(){location.reload()},600)}catch(e){toast(e.message)}}
     async function invite(){var email=document.getElementById('memEmail').value.trim(),role=document.getElementById('memRole').value;if(!email){toast('Enter an email');return}try{await api('/projects/${esc(project.id)}/members',{email:email,role:role});toast('Invited '+email);setTimeout(function(){location.reload()},600)}catch(e){toast(e.message)}}
+    function openDel(){var el=document.getElementById('delModal');if(el){el.classList.add('on');setTimeout(function(){document.getElementById('delName').focus()},50)}}
+    function closeDel(){var el=document.getElementById('delModal');if(el)el.classList.remove('on')}
+    async function delProject(){
+      if(document.getElementById('delName').value.trim()!==${JSON.stringify(project.name)}){toast('Name does not match');return}
+      try{await api('/projects/${esc(project.id)}',null,'DELETE');location.href='/'}catch(e){toast(e.message)}
+    }
     </script>` + foot;
 }

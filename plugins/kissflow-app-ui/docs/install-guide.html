@@ -1,0 +1,116 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>kf-app-author — Install &amp; Getting Started</title>
+<style>
+@page { size: A4; margin: 18mm 16mm 20mm; }
+* { box-sizing: border-box; margin: 0; }
+body { font: 10.5pt/1.55 "Helvetica Neue", Helvetica, Arial, sans-serif; color: #1a1d29; }
+h1 { font-size: 21pt; letter-spacing: -.02em; line-height: 1.15; }
+h2 { font-size: 13pt; letter-spacing: -.01em; margin: 18pt 0 6pt; padding-bottom: 3pt; border-bottom: 1.5pt solid #e7e9f2; break-after: avoid; }
+h2 .n { color: #7c5cff; font-weight: 800; margin-right: 6pt; }
+p, li { margin: 0 0 5pt; }
+ul, ol { padding-left: 16pt; margin: 2pt 0 7pt; }
+code, pre { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 9pt; }
+code { background: #f1f2f9; border-radius: 3pt; padding: .5pt 3pt; }
+pre { background: #14172a; color: #dfe4ff; border-radius: 6pt; padding: 8pt 10pt; margin: 4pt 0 9pt; white-space: pre-wrap; break-inside: avoid; }
+pre .c { color: #8990ab; }
+table { border-collapse: collapse; width: 100%; margin: 4pt 0 10pt; font-size: 9.5pt; break-inside: avoid; }
+th, td { border: .75pt solid #dfe2ee; padding: 4pt 7pt; text-align: left; vertical-align: top; }
+th { background: #f1f2f9; }
+.cover { display: flex; align-items: center; gap: 14pt; margin-bottom: 4pt; }
+.cover svg { width: 52pt; height: 52pt; flex: none; }
+.sub { color: #666d85; font-size: 10.5pt; margin-top: 3pt; }
+.meta { color: #8990ab; font-size: 9pt; margin-top: 5pt; }
+.callout { border-left: 3pt solid #7c5cff; background: #f6f4ff; padding: 6pt 9pt; border-radius: 0 5pt 5pt 0; margin: 6pt 0 9pt; break-inside: avoid; }
+.warn { border-left-color: #e05285; background: #fdf2f7; }
+.chip { display: inline-block; font-size: 8pt; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; background: #efeaff; color: #6a49f2; border-radius: 8pt; padding: 1.5pt 7pt; vertical-align: 2pt; }
+.cols { display: flex; gap: 12pt; }
+.cols > div { flex: 1; }
+.foot { margin-top: 16pt; padding-top: 6pt; border-top: 1.5pt solid #e7e9f2; color: #8990ab; font-size: 8.5pt; }
+a { color: #4a63d8; text-decoration: none; }
+</style></head><body>
+
+<div class="cover">
+  <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><path fill="#C21E8C" d="M136 28h84a28 28 0 0 1 28 28v164a28 28 0 0 1-28 28H56a28 28 0 0 1-28-28v-84A108 108 0 0 1 136 28z"/><path fill="#1E78F0" d="M292 28h84a108 108 0 0 1 108 108v84a28 28 0 0 1-28 28H292a28 28 0 0 1-28-28V56a28 28 0 0 1 28-28z"/><path fill="#F08018" d="M56 264h164a28 28 0 0 1 28 28v164a28 28 0 0 1-28 28h-84A108 108 0 0 1 28 376v-84a28 28 0 0 1 28-28z"/><path fill="#3F8F3F" d="M292 264h164a28 28 0 0 1 28 28v84a108 108 0 0 1-108 108h-84a28 28 0 0 1-28-28V292a28 28 0 0 1 28-28z"/><g transform="rotate(45 320 320)"><g stroke="#fff" stroke-width="22" stroke-linejoin="round"><path fill="#3B3B3B" d="M320 458l-34-62h68z"/><rect fill="#4B9648" x="286" y="230" width="68" height="166"/><rect fill="#A855F7" x="286" y="158" width="68" height="60" rx="18"/></g><path fill="#3B3B3B" d="M320 458l-34-62h68z"/><rect fill="#4B9648" x="286" y="230" width="68" height="166"/><rect fill="#A855F7" x="286" y="158" width="68" height="60" rx="18"/></g></svg>
+  <div>
+    <h1>kf-app-author <span style="font-weight:400;color:#666d85">— Install &amp; Getting Started</span></h1>
+    <div class="sub">Author real Kissflow apps from a BRD with a team of Claude agents — data models, workflows, roles, permissions, pages — reviewed before anything is built.</div>
+    <div class="meta"><span class="chip">v0.7.1</span> &nbsp; July 2026 · works in Claude Code desktop, CLI and Cowork</div>
+  </div>
+</div>
+
+<h2><span class="n">1</span>What you need</h2>
+<ul>
+  <li><b>Claude Code</b> (desktop app, CLI, or a Cowork session).</li>
+  <li>A <b>Google account on the kissflow.com domain</b> — sign-in to the appbuilder is Google SSO, domain-restricted.</li>
+  <li>A <b>Kissflow DEV account access key</b> (one person sets it up once for the team — see §3).</li>
+  <li>Node 18+ (the build engine is zero-dependency; python3 only for native page rendering).</li>
+</ul>
+
+<h2><span class="n">2</span>Install the plugin</h2>
+<pre>/plugin marketplace add https://github.com/dineshvaradharajan/kf-framework.git
+/plugin install kf-app-author@kf-tools</pre>
+<div class="callout warn"><b>Always install from the git URL, never a local folder.</b> Cowork/cloud sandboxes can't read your machine — a directory-sourced marketplace silently pins them to a stale copy of the plugin.</div>
+<p><b>Updating later:</b> <code>/plugin marketplace update kf-tools</code> → <code>/plugin update kf-app-author</code> → restart Claude Code.</p>
+
+<h2><span class="n">3</span>One-time team setup — the appbuilder</h2>
+<p>The team console lives at <b>appbuilder.zingworks.com</b>. Sign in with Google, then add a <b>dev environment</b> once (Dashboard → <i>Dev environments</i> → <i>＋ Add</i>):</p>
+<ul>
+  <li><b>Subdomain</b>: your Kissflow dev/builder account, e.g. <code>dev-acme</code> (read it off the URL).</li>
+  <li><b>Account id</b>: Kissflow → Account settings → Account details.</li>
+  <li><b>Access key id + secret</b> (both required): Kissflow dev account → Account Administration → Integrations → Access Keys → Create. The secret is shown once — paste both immediately.</li>
+</ul>
+<p>Credentials are stored server-side in Secret Manager and <b>never displayed again</b> (rows show a masked <code>key ••1234</code> hint). Every project can reuse the same environment; owners can rotate the key pair or delete the environment from the same list.</p>
+<div class="callout warn"><b>Use the DEV environment.</b> Dev/builder and runtime accounts have different ids and keys — a key from one gets <code>403 DomainMissMatchError</code> on the other. The pipeline never auto-publishes to prod.</div>
+
+<h2><span class="n">4</span>Per-workspace setup — <code>/author-setup</code></h2>
+<p>In the folder (or Cowork session) you'll author from, run <code>/author-setup</code> — <b>no arguments</b>. It stages the engine + playbooks + memory, then runs a browser handshake:</p>
+<ol>
+  <li>A verify link opens → sign in with Google.</li>
+  <li>Pick an existing <b>project</b> or create one on the spot, and pick its <b>dev environment</b>.</li>
+  <li>Approve → "Session connected" → <i>Continue to project</i>. The session is now fully wired: scoped dev credentials, your identity (versions and memory are attributed to you), the project's shared-memory partition, artifact storage — and <code>MEMORY-REMOTE.md</code> syncs the newest team knowledge from the server.</li>
+</ol>
+<p>A pre-minted connect URL from the project page also works: <code>/author-setup &lt;connect-url&gt;</code> (single-use, expires in ~10 minutes — just mint a fresh one if it lapses).</p>
+
+<h2><span class="n">5</span>Build an app</h2>
+<div class="cols"><div>
+<p><b>Express</b> (demos, small/clear specs) — one command, no review pause:</p>
+<pre>/author-app "an employee onboarding app
+  with HR approval and IT provisioning"</pre>
+<p>Runs brief → plan → generate back-to-back and builds the real app in dev, typically in a few minutes. <code>--dry-run</code> / <code>--yes</code> supported.</p>
+</div><div>
+<p><b>Staged</b> (recommended for real BRDs) — review before anything is built:</p>
+<pre>/author-brief &lt;brd&gt;   <span class="c">ingest → new run</span>
+/author-plan          <span class="c">propose design (v1)</span>
+/author-review        <span class="c">review + prototype</span>
+/author-refine "…"    <span class="c">iterate (vN+1)</span>
+/author-preview       <span class="c">dry-run gate</span>
+/author-generate      <span class="c">build in dev</span></pre>
+</div></div>
+<p><code>/author-review</code> renders an interactive review page (every field, workflow step, permission and decision is flaggable) plus a <b>clickable per-role prototype</b> — both are registered on the appbuilder project page for the team to open and judge. <code>/add-flow</code> / <code>/add-board</code> extend an existing app through the same pipeline.</p>
+
+<h2><span class="n">6</span>Where the work shows up</h2>
+<table>
+<tr><th>On the project page</th><th>What it tells you</th></tr>
+<tr><td><b>Versions</b></td><td>Every build and review is snapshotted — the review page and prototype open directly from here.</td></tr>
+<tr><td><b>✓ connected badge</b></td><td>Who last attached a Cowork session, and when.</td></tr>
+<tr><td><b>Members</b></td><td>Owner / builder / viewer roles; builders can mint connect links.</td></tr>
+<tr><td><b>Danger zone</b></td><td>Owners can delete the project (type-name confirm). The built Kissflow app and dev environments survive.</td></tr>
+</table>
+
+<h2><span class="n">7</span>The plugin keeps learning</h2>
+<p>Agents read three memory layers before working: the canonical <code>MEMORY.md</code> (ships with the plugin), <code>MEMORY-LOCAL.md</code> (your workspace), and <code>MEMORY-REMOTE.md</code> — synced on every connect from the team's shared pool, so every session starts with the newest platform knowledge. Lessons are written back with <code>node engine/memory.mjs remember "…"</code>. Claims that something is <i>impossible</i> are quarantined until the platform owner confirms them — one wrong belief can't mislead the whole team.</p>
+
+<h2><span class="n">8</span>Troubleshooting</h2>
+<table>
+<tr><th>Symptom</th><th>Fix</th></tr>
+<tr><td>Connect link says expired / already used</td><td>They're single-use, ~10 min. Re-run <code>/author-setup</code> or mint a fresh link on the project page.</td></tr>
+<tr><td>Env row shows <b>⚠ secret missing</b></td><td>The stored key has no secret — Edit (✎) and paste the full key pair.</td></tr>
+<tr><td><code>403 DomainMissMatchError</code> on builds</td><td>Key and subdomain are from different environments — use the DEV account for both (§3).</td></tr>
+<tr><td>Plugin shows an old version</td><td><code>/plugin marketplace update kf-tools</code> → <code>/plugin update kf-app-author</code> → restart. In Cowork, start a fresh session.</td></tr>
+<tr><td>Dev-env delete refused</td><td>Projects still link it — the error lists them; relink those projects first.</td></tr>
+</table>
+
+<div class="foot">
+kf-app-author v0.7.1 · install: <b>github.com/dineshvaradharajan/kf-framework</b> (kf-tools marketplace) · console: <b>appbuilder.zingworks.com</b> · full agent-use guide: <code>kf-author-plugin/docs/PIPELINE.md</code> · authored by Dinesh V — companion to kf-app-builder (the React-UI pipeline).
+</div>
+</body></html>

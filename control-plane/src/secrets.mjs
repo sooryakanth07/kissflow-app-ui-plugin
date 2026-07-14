@@ -25,6 +25,14 @@ export const secrets = {
     const r = await fetch(`${base}/secrets/${name}:addVersion`, { method: "POST", headers: { Authorization: `Bearer ${tok}`, "Content-Type": "application/json" }, body: JSON.stringify({ payload: { data } }) });
     if (!r.ok) throw new Error(`secret write failed (${r.status}) — runtime SA needs secretmanager.admin on the project (deploy/owner-grants.sh step 5)`);
   },
+  // best-effort delete (owner removed the env/project) — a failure never blocks the caller
+  async del(ref) {
+    if (backend === "memory") { store.delete(ref); return; }
+    try {
+      const tok = await gcpToken(), name = secretName(ref);
+      await fetch(`https://secretmanager.googleapis.com/v1/projects/${PROJECT}/secrets/${name}`, { method: "DELETE", headers: { Authorization: `Bearer ${tok}` } });
+    } catch {}
+  },
   async get(ref) {
     if (backend === "memory") return store.get(ref) || null;
     const tok = await gcpToken(), name = secretName(ref);
