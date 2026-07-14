@@ -63,12 +63,18 @@ decisions (the UI agent already made them), no data invention (the architect bou
 - **Actions**: row/card click → open a record (`kf.app.get*().openForm(...)` / a detail
   `Dialog`); any create → a primary `Button` opening the create form. Wrap any section with
   a `gate` in `canAccess(id) ? <section/> : <NoAccess/>`.
-- **Nav + shell**: add an entry to `NAV_ITEMS` in `src/components/app-shell.jsx` —
-  `{ to: "/<route>", label, icon: <LucideIcon> }` (import the lucide icon). **The shell itself is
-  a STARTING POINT to ADAPT, not keep — don't just recolour it. Restructure it to fit the app +
-  audience: bottom tab-bar for a consumer/mobile app, sidebar for an admin/ops tool, a plain
-  header for a single-purpose one; rework the brand/search/profile/role-switch chrome. Two apps
-  must have visibly different shells.** See `agents/design-guidelines.md` → "Adapt the shell + the record form".
+- **Nav + shell**: the scaffold's `src/components/app-shell.jsx` is a **wiring reference, not a base
+  to keep** — the default only shows the mechanics (`layout` prop, `NAV_ITEMS` → `KfLink`, dark
+  toggle, theme switcher, mobile drawer). **REBUILD the shell for this app**, don't just recolour it
+  and add nav items: pick the pattern from the app + audience (bottom tab-bar for a consumer/mobile
+  app, sidebar for an admin/ops tool, a plain header for a single-purpose one) and design the brand,
+  nav shape/labels/icons, and global chrome (search, profile, notifications, the dev role switcher)
+  from the domain. Two apps must have **visibly different shells** — the default sidebar recoloured
+  is a fail. See `agents/design-guidelines.md` → "Build the app's shell + record form".
+- **Dev role switcher (in the shell)**: put a `Select`/`DropdownMenu` over `await kf.app.getRoles()`
+  that calls `kf.app.switchRole({ roleId })` (switches live, no reload) so testers can flip roles.
+  Both are **dev-only** — wrap `getRoles()` in try/catch and only render the switcher when it
+  resolves (it won't appear in prod).
 
 ## Verify
 Run `npm run build`. Fix any compile error before returning. Do not leave

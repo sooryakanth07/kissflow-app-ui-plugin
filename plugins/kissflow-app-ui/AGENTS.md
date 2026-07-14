@@ -310,13 +310,16 @@ record card), build a small component from `Card` + tokens so it sits alongside 
 A map needs a real Geolocation field and the leaflet deps (`npm i leaflet react-leaflet`).
 
 ## Layout & the shell
-Pages render inside `src/components/app-shell.jsx` (sidebar + header, mobile drawer, dark-mode
-toggle, theme control). Add nav entries to its `NAV_ITEMS` — and **ADAPT the shell to the app,
-don't just restyle it**: pick the nav pattern that fits (bottom tab-bar for consumer/mobile,
-sidebar for admin, plain header for single-purpose) and rework the brand/search/profile chrome.
-Likewise the record **`Form`** (`@/components/form`) is a starting point to adapt — sectioned +
-styled per record — **never a raw drop-in**. (Full rules: `design-guidelines.md` → "Adapt the
-shell + the record form".) Use responsive Tailwind grids
+The scaffold `src/components/app-shell.jsx` (sidebar + header, mobile drawer, dark toggle, theme
+control) is a **wiring reference, not a base to keep** — it only shows the mechanics (`layout` prop,
+`NAV_ITEMS` → `KfLink`, dark/theme, mobile drawer). **REBUILD the shell for the app, don't just
+restyle it**: pick the nav pattern that fits (bottom tab-bar for consumer/mobile, sidebar for admin,
+plain header for single-purpose) and design the brand / nav / global chrome (search, profile,
+notifications, a dev **role switcher** — `kf.app.getRoles()` → `kf.app.switchRole`, dev-only) from
+the domain. Two apps must have **visibly different shells**. Likewise the record **`Form`**
+(`@/components/form`) is designed per record (sectioned + styled), **never a raw drop-in**. Role-gate
+by `kf.user.AppRoles` — different roles get different UI. (Full rules: `design-guidelines.md` →
+"Build the app's shell + record form".) Use responsive Tailwind grids
 (`grid gap-4 sm:grid-cols-2 lg:grid-cols-4`) — no dead space; primary visual full-width.
 
 See `agents/design-guidelines.md` for the full quality bar and `agents/theming.md` for the

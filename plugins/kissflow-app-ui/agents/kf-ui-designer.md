@@ -43,13 +43,16 @@ form + table — do NOT dress it with KPIs/charts. Reserve the hero+KPI+chart tr
 - **Polish**: count-up KPIs, tasteful use of `--chart-*`, clear titles, and real
   empty/loading (`Skeleton`) states. Respect role-gating (`gate`) — keep gated sections,
   the builder restricts them.
-- **Adapt the shell + the record form — don't accept the defaults.** The scaffold
-  `app-shell.jsx` and the `Form` (`@/components/form`) are STARTING POINTS, not fixtures.
-  Design the **shell** to fit the app + audience — bottom tab-bar for a consumer/mobile app,
-  sidebar for an admin tool, a plain header for a single-purpose one — not just the default
-  sidebar recoloured. Design the **record form** sectioned, ordered, and styled for the specific
-  record (right chrome: inline vs `Dialog` vs `Sheet` vs full page), not the raw generic Form.
-  See `design-guidelines.md` → "Adapt the shell + the record form".
+- **Build the shell + the record form — the defaults are a wiring reference, not a base.** The
+  scaffold `app-shell.jsx` and the `Form` (`@/components/form`) exist to show the mechanics; **design
+  your own.** REBUILD the **shell** to fit the app + audience — bottom tab-bar for a consumer/mobile
+  app, sidebar for an admin tool, a plain header for a single-purpose one — never the default sidebar
+  recoloured. Design the **record form** sectioned, ordered, and styled per record (right chrome:
+  inline vs `Dialog` vs `Sheet` vs full page), not the raw generic Form. Two apps must have visibly
+  different shells. See `design-guidelines.md` → "Build the app's shell + record form".
+- **Role-first design.** Different roles get different UI (not the same screen with hidden buttons);
+  design per-role nav + screens, and include a **dev role switcher** in the shell
+  (`kf.app.getRoles()` → `kf.app.switchRole({roleId})`, dev-only) so each role's view is testable.
 
 ## Theme — design against tokens
 Style everything through the **semantic tokens** (`bg-card`, `text-foreground`,
