@@ -5,8 +5,8 @@
   },
   "plugins": [
     {
-      "name": "Kissflow App Agents",
-      "displayName": "Kissflow App UI",
+      "name": "kissflow-app-agents",
+      "displayName": "Kissflow App Agents",
       "description": "Author a whole Kissflow app (data models, roles, workflows) from a BRD and build its UI — native pages or a custom shadcn React UI. Connects to appbuilder for build/version tracking.",
       "version": "0.7.0",
       "source": "./plugins/kissflow-app-ui"
