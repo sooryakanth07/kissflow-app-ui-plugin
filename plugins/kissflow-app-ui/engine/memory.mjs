@@ -123,6 +123,53 @@ export function readMemoryUnion(file, fs = { readFileSync, existsSync }) {
   return text;
 }
 
+// control-plane memory PROXY — the path for connected Cowork sessions (they hold a project token,
+// never DB creds). recall → POST /memory/recall; remember → POST /memory/write. The SERVER embeds.
+const proxyCfg = () => (process.env.CONTROL_PLANE_URL && process.env.KF_API_TOKEN
+  ? { base: process.env.CONTROL_PLANE_URL, token: process.env.KF_API_TOKEN } : null);
+async function proxyCall(path, body) {
+  const { base, token } = proxyCfg();
+  const r = await fetch(base + path, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(body) });
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+  return j;
+}
+
+// remember(text) — the WRITE path: hive via the proxy when connected, else MEMORY-LOCAL.md.
+export async function remember(text, { scope = "app", tier, kind, agent, app, impossible } = {}) {
+  if (proxyCfg()) {
+    try { return { via: "proxy", ...(await proxyCall("/memory/write", { text, scope, tier, kind, agent, app, impossible })) }; }
+    catch (e) { console.error(`remember: proxy unavailable (${e.message}) — appending MEMORY-LOCAL.md`); }
+  }
+  const line = `- ${new Date().toISOString().slice(0, 10)} [${app ? `app:${app}` : scope}] ${text}\n`;
+  writeFileSync("MEMORY-LOCAL.md", (existsSync("MEMORY-LOCAL.md") ? readFileSync("MEMORY-LOCAL.md", "utf8") : "") + line);
+  return { via: "local-file" };
+}
+
+// recall(query) — the READ path the plugin pulls memory into context with. Order: (1) control-plane
+// proxy when connected (freshest global + org pool), (2) direct shared pool when configured
+// (KF_MEM_STORE=qdrant|memory, or MEM0_BASE_URL), (3) the local MEMORY.md union. Any remote failure
+// degrades to the next tier, never blocks.
+export async function recall(query, { file = "MEMORY.md", top_k = 12, org, agent = "" } = {}) {
+  if (proxyCfg()) {
+    try {
+      const { hits } = await proxyCall("/memory/recall", { query, top_k, agent: agent || undefined });
+      if (hits?.length) return hits.map((h) => `- [${h.scope}${h.app ? `:${h.app}` : ""}]${h.impossible ? " [impossibility]" : ""} ${h.text} [tier:${h.tier}]`).join("\n");
+    } catch (e) { console.error(`recall: memory proxy unavailable (${e.message}) — trying direct store / file`); }
+  }
+  if (process.env.KF_MEM_STORE || process.env.MEM0_BASE_URL) {
+    try {
+      const { remoteMemory } = await import("./memory-remote.mjs");
+      const { brief } = await remoteMemory({ org }).brief(query || "", { top_k, agent });
+      if (brief) return brief;                    // typed, risk-first digest (broker)
+      // pool empty/unseeded → fall through to the file union
+    } catch (e) {
+      console.error(`recall: shared pool unavailable (${e.message}) — falling back to ${file}`);
+    }
+  }
+  return existsSync(file) ? readMemoryUnion(file) : "";
+}
+
 // ── CLI ───────────────────────────────────────────────────────────────────────
 const isMain = process.argv[1] && import.meta.url.endsWith(process.argv[1].split("/").pop());
 if (isMain) {
@@ -133,7 +180,16 @@ if (isMain) {
   const positional = args.slice(1).filter((a, i, arr) => !a.startsWith("--") && arr[i - 1] !== "--now" && arr[i - 1] !== "--archive");
   const now = flag("--now") || new Date().toISOString().slice(0, 10);
 
-  if (cmd === "contribute") {
+  if (cmd === "recall") {
+    // node engine/memory.mjs recall "<task/query>" [--k 12] [--org acme] [--file MEMORY.md]
+    const out = await recall(positional[0] || "", { file: flag("--file") || "MEMORY.md", top_k: +(flag("--k") || 12), org: flag("--org") || undefined });
+    process.stdout.write(out);
+  } else if (cmd === "remember") {
+    // node engine/memory.mjs remember "<lesson>" [--scope app|global|agent|user] [--app <id>] [--agent <name>] [--tier <t>] [--impossible]
+    const r = await remember(positional[0] || "", { scope: flag("--scope") || "app", app: flag("--app") || undefined,
+      agent: flag("--agent") || undefined, tier: flag("--tier") || undefined, impossible: has("--impossible") });
+    console.log(`remembered via ${r.via}${r.inserted === false ? " (already known — deduped)" : ""}`);
+  } else if (cmd === "contribute") {
     const local = positional[0] || "MEMORY-LOCAL.md";
     const outFile = flag("--out") || "MEMORY-CONTRIBUTION.md";
     if (!existsSync(local)) { console.log(`no ${local} — nothing locally learned yet`); process.exit(0); }

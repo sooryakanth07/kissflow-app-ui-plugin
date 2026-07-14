@@ -35,6 +35,14 @@ Pre-req: a current run with a **verified** `runs/current/app-spec.json`. Gate is
    `node engine/runs.mjs snapshot "generated → dev"`.
 6. **Acceptance** — spawn `kf-acceptance` to smoke-check the built app against the journeys; report
    pass/fail per journey.
+7. **Publish the version** (only when connected to the hosted app — `CONTROL_PLANE_URL` + `KF_API_TOKEN`
+   in the env, set by `/author-setup` step 1b). Push this run's artifacts to the project's GCS prefix and
+   register a version so it shows up in the app's **Versions** list:
+   ```bash
+   node engine/publish.mjs runs/current --label "<short build label>"
+   ```
+   It's a no-op if not connected (local-only builds just skip it). Mention the registered version in the
+   output when it runs.
 
 ## Output
 What was created (with real Kissflow ids), the acceptance result, and where the log lives

@@ -1,0 +1,17 @@
+{
+  "name": "kf-control-plane",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Hosted control plane for kf-app-builder — Google SSO, projects, connect handshake, versions. Cloud Run + Cloud SQL (Postgres/pgvector).",
+  "main": "src/server.mjs",
+  "scripts": {
+    "start": "node src/server.mjs",
+    "test": "node test/control-plane.test.mjs"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "jose": "^5.9.6",
+    "pg": "^8.13.1"
+  }
+}

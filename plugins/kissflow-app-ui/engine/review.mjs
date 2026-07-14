@@ -227,8 +227,11 @@ function buildGraph() {
   }
   const connected = new Set();
   for (const [a, b] of [...refE, ...childE]) { connected.add(a); connected.add(b); }
+  // no relationships at all (single-entity / standalone apps): still diagram every entity alone —
+  // an empty Data Model tab reads as "not generated" when the model simply has no references.
+  if (!connected.size) for (const f of forms) if (f.name && !f.childOf) connected.add(f.name);
   const N = connected.size;
-  if (!N) return { svg: `<p class="empty">No relationships between entities to diagram.</p>`, W: 0, H: 0, N: 0, standalone: 0 };
+  if (!N) return { svg: `<p class="empty">No entities to diagram.</p>`, W: 0, H: 0, N: 0, standalone: 0 };
   const parentOf = {}; for (const [p, c] of childE) parentOf[c] = p;
   const targets = {}; for (const [a, b] of refE) (targets[a] = targets[a] || new Set()).add(b);
   const memo = {};
@@ -482,13 +485,25 @@ const dNote = graph.standalone > 0 ? `<p class="dnote">${graph.N} related entiti
 const sDiagram = graph.N === 0 ? graph.svg
   : `<div class="dbar"><h2 class="dtitle">Data Model</h2>${dLegend}${dHint}</div><div class="diagpane">${erCC}<div class="diagram" id="erwrap">${merER ? `<div class="mermaid" id="ermer">${merER}</div>` : ""}<div id="erfb"${merER ? ` style="display:none"` : ""}>${graph.svg}</div></div></div>${dNote}`;
 
-const sFlow = processes.map((p) => {
+const sFlowProc = processes.map((p) => {
   const mf = buildMermaidFlow(p);
   const stepsList = ((p.workflow?.steps) || []).map((s) => `<li><b>${esc(s.name || s.label)}</b> — <span class="actor">${esc(s.actor || "—")}</span>${s.decision ? ` <span class="dec">[${(s.decision || []).map(esc).join(" / ")}]</span>` : ""}</li>`).join("");
   const body = mf ? `<div class="flow"><div class="mermaid wf">${mf}</div></div><details class="steptext"><summary>steps as a list</summary><ol class="steps">${stepsList}</ol></details>`
     : `<p class="empty">No steps defined.</p>`;
   return item(`w-${slug(p.name)}`, "workflow", `${p.name}`, "Process", body);
-}).join("") || `<p class="empty">No processes (no workflows) proposed.</p>`;
+}).join("");
+// Case flows rendered as a Kanban board — one column per status, colour-coded by category
+const KCAT = { NotStarted: "#94a3b8", InProgress: "var(--primary)", Done: "var(--ok)", ReOpened: "var(--chg)", Closed: "#475569" };
+const sFlowCases = forms.filter((f) => (f.flowType || "") === "Case").map((c) => {
+  const sts = (c.workflow?.statuses) || [];
+  const cols = sts.map((s) => {
+    const nm = esc(s.name || s), cat = s.category || "";
+    return `<div class="kcol" style="--kc:${KCAT[cat] || "#94a3b8"}"><div class="kcol-h"><span>${nm}</span>${cat ? `<span class="kcat">${esc(cat)}</span>` : ""}</div><div class="kcol-b">${s.note ? `<div class="kcard">${esc(s.note)}</div>` : `<div class="kempty">—</div>`}</div></div>`;
+  }).join("");
+  const body = sts.length ? `<div class="kanban">${cols}</div>${c.workflow?.transition_model ? `<div class="kflow">↔ ${esc(c.workflow.transition_model)}</div>` : ""}` : `<p class="empty">No statuses defined.</p>`;
+  return item(`c-${slug(c.name)}`, "workflow", `${c.name}`, "Case", body);
+}).join("");
+const sFlow = (sFlowProc + sFlowCases) || `<p class="empty">No processes or cases proposed.</p>`;
 
 const sRoles = (() => {
   const models = [...new Set(perms.map((p) => p.model))];
@@ -902,6 +917,15 @@ main{max-width:1560px;margin:0 auto;padding:30px 28px 64px}
 .req{color:#ef4444}code{background:#f1f5f9;padding:1px 5px;border-radius:5px;font-size:12px;overflow-wrap:anywhere;word-break:break-word}
 .kids,.rel{margin-top:8px;color:var(--muted);font-size:12.5px}
 .steps{margin:6px 0 0;padding-left:18px}.steps li{margin:3px 0}.actor{color:var(--primary);font-weight:600}.dec{color:var(--muted);font-size:12px}
+.kanban{display:flex;gap:10px;overflow-x:auto;padding:6px 2px 10px;width:100%}
+.kcol{flex:1 1 0;min-width:120px;background:var(--bg);border:1px solid var(--brd);border-radius:10px;overflow:hidden;display:flex;flex-direction:column}
+.kcol-h{font-weight:700;font-size:12.5px;color:var(--ink);padding:9px 11px;min-height:58px;box-sizing:border-box;background:var(--card);border-bottom:1px solid var(--brd);border-top:3px solid var(--kc,#94a3b8);display:flex;align-items:center;justify-content:space-between;gap:6px}
+.kcol-h>span{overflow-wrap:anywhere}
+.kcat{font-size:9px;text-transform:uppercase;letter-spacing:.04em;color:#fff;background:var(--kc,#94a3b8);padding:2px 7px;border-radius:999px;font-weight:700;white-space:nowrap}
+.kcol-b{padding:9px;flex:1;min-height:44px}
+.kcard{background:var(--card);border:1px solid var(--brd);border-radius:7px;padding:8px 9px;font-size:11.5px;color:var(--muted);line-height:1.45}
+.kempty{font-size:11px;color:var(--muted);opacity:.55}
+.kflow{color:var(--muted);font-size:12px;margin-top:8px}
 .steptext{margin-top:8px;color:var(--muted);font-size:12.5px}.steptext summary{cursor:pointer}
 .flow{overflow:auto;background:var(--card2);border:1px solid var(--brd);border-radius:12px;padding:10px}
 .stats{display:flex;gap:20px;flex-wrap:wrap;background:var(--card);backdrop-filter:var(--glass);-webkit-backdrop-filter:var(--glass);border:1px solid var(--brd);border-radius:var(--r);padding:16px 20px;margin-bottom:12px;box-shadow:0 12px 34px -24px rgba(30,41,59,.5)}.stats b{font-size:22px;display:block}

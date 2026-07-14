@@ -675,7 +675,7 @@ export function buildApp(ir) {
   // exists (a list, or a master FORM) — it just wasn't wired. Link it by name (exact, else suffix
   // match to absorb prefixes), as a list (→ Select) or a master form (→ Reference). Never silently
   // drop a Select to Text.
-  const TYPE_ALIAS = { YesNo: "Boolean", "Yes/No": "Boolean", YesOrNo: "Boolean", Dropdown: "Select", DropDown: "Select", Datetime: "DateTime", LongText: "Textarea" };
+  const TYPE_ALIAS = { YesNo: "Boolean", "Yes/No": "Boolean", YesOrNo: "Boolean", Dropdown: "Select", DropDown: "Select", Datetime: "DateTime", LongText: "Textarea", TextArea: "Textarea", Multiline: "Textarea" };
   const nrm = (s) => String(s || "").toLowerCase().replace(/\bmaster\b|\(.*?\)|[^a-z0-9]/g, "");
   const listIdx = (ir.lists || []).map((l) => ({ name: l.name, n: nrm(l.name) }));
   const formIdx = (ir.forms || []).map((f) => ({ name: f.id || f.name, n: nrm(f.name) }));

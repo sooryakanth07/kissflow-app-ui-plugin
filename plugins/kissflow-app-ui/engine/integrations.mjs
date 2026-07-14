@@ -36,7 +36,13 @@ export const CONNECTOR_CATALOG = {
     actions: { createSubmit: "CreateAndSubmitItem", update: "UpdateAnItem", approve: "Action_-SkflzwKj", search: "Action_Kh4Jb2AoG" },
   },
   dataset: { match: /kissflow dataset/i, triggers: {}, actions: {} },   // enrich via fetchConnectorMeta
-  board: { match: /kissflow board/i, triggers: {}, actions: {} },
+  // Board (Case-flow) connector — live-verified ids (hire-onboarding AR-8, 2026-07-05): a board item
+  // "created" fires ItemSubmitted (boards have no draft stage), status moves fire StatusUpdated, and
+  // creating INTO a board is CreateItem (NOT the process CreateAndSubmitItem). Other ids unverified —
+  // enrich via fetchConnectorMeta rather than guessing.
+  board: { match: /kissflow board/i,
+    triggers: { created: "ItemSubmitted", advances: "StatusUpdated", completed: "ItemCompleted" },
+    actions: { create: "CreateItem" } },
   project: { match: /kissflow project/i, triggers: {}, actions: {} },
   webhook: { match: /webhook/i, triggers: { webhook: "WebhookTrigger" }, actions: {} },
   email: { match: /^email$/i, triggers: {}, actions: { send: "SendEmail" } },
@@ -48,7 +54,7 @@ export const CONNECTOR_CATALOG = {
 // until that connector is subscribed. resolveConnectors() reflects what's actually installed.
 
 // Trigger EVENTS map: automation `source.event` → the Process connector trigger key.
-export const EVENT_TO_TRIGGER = { created: "created", submitted: "submitted", approved: "completed", completed: "completed", updated: "advances" };
+export const EVENT_TO_TRIGGER = { created: "created", submitted: "submitted", approved: "completed", completed: "completed", updated: "advances", rejected: "rejected" };
 
 // Map a flowType → connector-catalog key.
 export function connectorKeyFor(flowType) {

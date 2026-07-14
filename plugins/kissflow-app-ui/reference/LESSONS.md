@@ -107,6 +107,44 @@ don't re-run the whole apply.
 NO_TERMINAL_STATUS · UNKNOWN_FIELD_TYPE …` gate the build. A clean `0 errors` build is the contract;
 warnings are findings to resolve, not ignore.
 
+## 11. Step conditions are FORMULAS on the activity [tier:owner-confirmed]
+A workflow step condition is `Activity::Expression` → an **Expression/Node AST**, the same shape as
+a field formula re-scoped Field→Activity. It is **NOT** a Criteria/Condition — that shape exists only
+for reference/query filters and integration IfActions. Equality in the formula is `=`, not `==`.
+
+## 12. Parallel branches: `Parallel` NodeType + nested branch ProcessDefs [tier:golden-verified]
+Parallel branches are a **`Parallel` NodeType activity** whose `Activity::ProcessDef:[…]` forks into
+nested branch ProcessDefs; the branches **auto-join** (no explicit join activity). Golden source:
+`Vashi_Setup_Operations` export.
+
+## 13. `addWorkflow` is LINEAR-ONLY — keep a master-process script
+The engine's `addWorkflow` emits linear workflows only. Step conditions (§11) and parallel branches
+(§12) are hand-authored on top and **DROP on any engine rebuild**. Discipline: keep ONE authoritative
+master-process script that re-applies the non-linear structure, and **strip non-linear IR steps
+before the engine base build** so the rebuild doesn't fight the graft.
+
+## 14. Native Decision Tables are plan-gated → dataform Approval Matrix
+Creating a native Decision Table returns `403 YourPlanNotSupport`. Model decision logic as a
+dataform **"Approval Matrix"** + a lookup on the process form + branch step-conditions (§11) reading
+the looked-up values.
+
+## 15. Lists are created EMPTY — and the list-data API is closed
+API-created Lists have no rows: Select dropdowns backed by them render blank, and the API can
+neither read nor write list data (403). For any value you must **seed programmatically or condition
+on**, use a Text/Number field instead of a List-backed Select.
+
+## 16. Edit apps IN PLACE — never a new app per change [tier:owner-confirmed]
+Duplicate published apps can't be REST-deleted (§ owner Q6) — every throwaway app is permanent.
+Technique: per flow, `getDraft → graft → putDraft → publish`, and reuse `applyIR` for
+pages/permissions/nav.
+- **423 grant-lock**: member/report grants intermittently return `423` during publish; re-issuing
+  after a moment → 200. Always finish an apply with a **re-grant pass**.
+
+## 17. Don't infer "impossible" from absence in a sample
+Step-conditions (§11) and parallel branches (§12) were wrongly called impossible because the sampled
+apps simply didn't use them. Before authoring (or ruling out) a feature, find a flow that USES it or
+read the golden export. This is the IMPOSSIBILITY QUARANTINE rule (MEMORY.md) in practice.
+
 ## Runtime (kf-framework UI) — REST surface, for the UI phase
 Process list is REST-listable only via `/process/2/{acct}/{id}/myitems` (other builder views →
 404); add `&_response_type=full` to get status/stage/dates. Business-field values for processes

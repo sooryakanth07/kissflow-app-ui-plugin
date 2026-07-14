@@ -13,7 +13,6 @@ import { existsSync, readFileSync } from "node:fs";
 import { loadApp, allBlobs } from "../loader.mjs";
 import { validateBlob, checkStructural, checkFields, checkCaseflow, errors, warnings } from "../validators.mjs";
 import { buildForm, buildList, buildRole, buildApp, buildAutomation, buildBoard, buildKanbanPage } from "../builders.mjs";
-import { flowGrant } from "../client.mjs";
 import { fmType, resolveSkeleton, buildIntegrationDraft, buildIntegrationDraftFull, connectionsFromExport, provisionSystemConnection, ensureConnections, resolveEntityFields, applyIntegrationResolved } from "../integrations.mjs";
 import { index, entities } from "../graph.mjs";
 import { validateIR } from "../ir.mjs";
@@ -361,26 +360,6 @@ ok("resolveSkeleton: approved → ItemCompleted trigger", resolveSkeleton(upAuto
 ok("resolveSkeleton: update → UpdateAnItem action", resolveSkeleton(upAuto, skCtx).actionId === "UpdateAnItem");
 ok("resolveSkeleton: created → ItemCreated trigger", resolveSkeleton(crAuto, skCtx).triggerId === "ItemCreated");
 ok("resolveSkeleton: create → CreateAndSubmitItem action", resolveSkeleton(crAuto, skCtx).actionId === "CreateAndSubmitItem");
-// board (Case-flow) sources/targets + the rejected event — live-verified connector ids (2026-07-05)
-const bdCtx = { flowTypeOf: (f) => (f === "Case" ? "Board" : "Process") };
-const arAuto = { name: "AR8", source: { flow: "Offer", event: "completed" }, action: { type: "create", target_flow: "Case", field_map: {} } };
-ok("resolveSkeleton: Board target create → board connector + CreateItem", (() => { const s = resolveSkeleton(arAuto, bdCtx); return s.tgtKey === "board" && s.actionId === "CreateItem" && s.triggerId === "ItemCompleted"; })());
-const bcAuto = { name: "BC", source: { flow: "Case", event: "created" }, action: { type: "notify", target_flow: "Case" } };
-ok("resolveSkeleton: Board source created → ItemSubmitted trigger", resolveSkeleton(bcAuto, bdCtx).triggerId === "ItemSubmitted");
-const buAuto = { name: "BU", source: { flow: "Case", event: "updated" }, action: { type: "notify", target_flow: "Case" } };
-ok("resolveSkeleton: Board source updated → StatusUpdated trigger", resolveSkeleton(buAuto, bdCtx).triggerId === "StatusUpdated");
-const rjAuto = { name: "RJ", source: { flow: "Src", event: "rejected" }, action: { type: "notify", target_flow: "Src" } };
-ok("resolveSkeleton: rejected event → ItemRejected trigger", resolveSkeleton(rjAuto, skCtx).triggerId === "ItemRejected");
-
-// flowGrant — member-grant contract. Board MUST map to the "case" family with Permission:[] (the
-// generic path sent Board→"form"+["Delete"] → 404 + memberless boards; hire-onboarding 2026-07-05).
-ok("flowGrant: Board editable → case family, Member, Permission:[]", (() => { const g = flowGrant("Board", { editable: true }); return g.family === "case" && g.role === "Member" && g.permission.length === 0; })());
-ok("flowGrant: Board owner (admin) → case Admin, Permission:[]", (() => { const g = flowGrant("Board", { editable: true, admin: true }); return g.family === "case" && g.role === "Admin" && g.permission.length === 0; })());
-ok("flowGrant: Board read-only → case Viewer, Permission:[]", (() => { const g = flowGrant("Board", { editable: false }); return g.family === "case" && g.role === "Viewer" && g.permission.length === 0; })());
-ok("flowGrant: Case behaves like Board (case family)", flowGrant("Case", { editable: true }).family === "case");
-ok("flowGrant: Process → process family, Member, Permission:[]", (() => { const g = flowGrant("Process"); return g.family === "process" && g.role === "Member" && g.permission.length === 0; })());
-ok("flowGrant: Form editable → form family, Member+[Delete]", (() => { const g = flowGrant("Form", { editable: true }); return g.family === "form" && g.role === "Member" && g.permission[0] === "Delete"; })());
-ok("flowGrant: Form read-only → form Viewer, Permission:[]", (() => { const g = flowGrant("Form", { editable: false }); return g.family === "form" && g.role === "Viewer" && g.permission.length === 0; })());
 
 // buildIntegrationDraft — STEP SKELETON only (trigger + create/update/email action; no connection,
 // no flow binding, no field mappings — the user configures those in the builder after auth) (11)

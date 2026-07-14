@@ -1,0 +1,27 @@
+# Real self-hosted Mem0 — swap the mock for this once Docker is running and you have an LLM key.
+#   1. start docker desktop
+#   2. export OPENAI_API_KEY=sk-...        (Mem0 needs an LLM to EXTRACT + DEDUP facts; the gate
+#                                            in front is ours, the extraction inside is Mem0's)
+#   3. docker compose -f docker-compose.mem0.yml up -d
+#   4. export MEM0_BASE_URL=http://localhost:8000
+#      # Mem0's REST server exposes /v1/memories and /v1/memories/search — point the client at them:
+#      export MEM0_ADD_PATH=/v1/memories  MEM0_SEARCH_PATH=/v1/memories/search
+#   5. node engine/test/mem0-proof.mjs        # same proof, now against real Mem0 (no --mock)
+services:
+  qdrant:                       # vector store Mem0 retrieves from
+    image: qdrant/qdrant:latest
+    ports: ["6333:6333"]
+    volumes: ["mem0_qdrant:/qdrant/storage"]
+
+  mem0:                         # Mem0 REST server
+    image: mem0/mem0-api-server:latest
+    depends_on: [qdrant]
+    ports: ["8000:8000"]
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}      # or set a local LLM base per Mem0 docs
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+    restart: unless-stopped
+
+volumes:
+  mem0_qdrant:

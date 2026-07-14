@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- four petals: strongly rounded outer corner, medium inner corners -->
+  <path fill="#C21E8C" d="M136 28 h84 a28 28 0 0 1 28 28 v164 a28 28 0 0 1 -28 28 h-164 a28 28 0 0 1 -28 -28 v-84 a108 108 0 0 1 108 -108 z"/>
+  <path fill="#1E78F0" d="M292 28 h84 a108 108 0 0 1 108 108 v84 a28 28 0 0 1 -28 28 h-164 a28 28 0 0 1 -28 -28 v-164 a28 28 0 0 1 28 -28 z"/>
+  <path fill="#F08018" d="M56 264 h164 a28 28 0 0 1 28 28 v164 a28 28 0 0 1 -28 28 h-84 a108 108 0 0 1 -108 -108 v-84 a28 28 0 0 1 28 -28 z"/>
+  <path fill="#3F8F3F" d="M292 264 h164 a28 28 0 0 1 28 28 v84 a108 108 0 0 1 -108 108 h-84 a28 28 0 0 1 -28 -28 v-164 a28 28 0 0 1 28 -28 z"/>
+  <!-- pencil at 45°, white-outlined: dark tip → green body → purple eraser -->
+  <g transform="rotate(45 320 320)">
+    <g stroke="#fff" stroke-width="22" stroke-linejoin="round">
+      <path fill="#3B3B3B" d="M320 458 l-34 -62 h68 z"/>
+      <rect fill="#4B9648" x="286" y="230" width="68" height="166"/>
+      <rect fill="#A855F7" x="286" y="158" width="68" height="60" rx="18"/>
+    </g>
+    <!-- re-draw fills so the white stroke only shows OUTSIDE each part -->
+    <path fill="#3B3B3B" d="M320 458 l-34 -62 h68 z"/>
+    <rect fill="#4B9648" x="286" y="230" width="68" height="166"/>
+    <rect fill="#A855F7" x="286" y="158" width="68" height="60" rx="18"/>
+  </g>
+</svg>

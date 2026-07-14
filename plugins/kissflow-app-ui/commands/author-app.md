@@ -1,11 +1,14 @@
 ---
-description: EXPRESS (one-shot) — take a requirement straight to a built app in dev, running brief → plan → generate back-to-back with no review pause. Accepts a BRD file, pasted requirement text, or a one-line ask. Best for demos and small/clear specs. For anything real, prefer the staged flow (/author-brief → /author-plan → /author-review → /author-refine → /author-preview → /author-generate).
+description: EXPRESS (one-shot) — take a requirement straight to a built app in dev, running brief → plan → generate back-to-back with no review pause. Accepts a BRD file, pasted requirement text, or a one-line ask — ANY SIZE. A full multi-page BRD runs end-to-end in this one command exactly like a one-liner does; do NOT switch to, or tell the user to run, the staged flow just because the spec is big or complex — stay express. The staged commands (/author-brief … /author-generate) exist only for a user who explicitly asks for manual stage-by-stage control.
 argument-hint: "<BRD path | pasted requirement | one-line ask>" [--yes] [--dry-run]
 ---
 
 **Express path.** Runs the whole pipeline end-to-end in one command — no stop to review. This trades
-the safety of the staged loop for speed, so use it for demos or specs you already trust. The build is
-still real and (for Processes/Cases) irreversible over REST.
+the review pause for speed. It handles **any requirement size** — a one-line ask or a full multi-page
+BRD both run start-to-finish here; **never bail to the staged flow because a spec is large or complex**
+(the internal pipeline still runs every stage + verifier — you just don't stop between them). Only a
+**blocking ambiguity** (a genuinely missing decision that changes the build) is grounds to pause and
+ask — size and complexity are not. The build is still real and (for Processes/Cases) irreversible over REST.
 
 Pre-req: `/author-setup` has staged `engine/` + `reference/` + `MEMORY.md`.
 

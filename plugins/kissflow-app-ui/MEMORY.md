@@ -43,6 +43,12 @@ Beliefs earn authority; they don't get it for free. When writing an entry:
   global/agent-scoped slice (never [app:*] project knowledge) as MEMORY-CONTRIBUTION.md — submit it
   to the plugin repo; the platform owner reviews and merges. [impossibility] claims from the field
   enter CONFIRM-QUEUE.md as PENDING — they never self-promote.
+- **RECALL (shared pool).** When `MEM0_BASE_URL` is set, the memory is a central org-partitioned pool,
+  not this file. Pull only what THIS task needs: `node engine/memory.mjs recall "<one-line brief>" --org <org>`
+  returns the top-K relevant lines (fast as the pool grows); writes still go through the curation gate
+  (`memory-remote.mjs` → accept/queue/local). With no `MEM0_BASE_URL`, recall degrades to this file — so
+  the instruction "read memory first" works unchanged either way. `/author-brief` should recall against
+  the BRD's one-line summary before planning.
 
 ## Entries
 - 2026-06-30 [global] Published processes are IMMUTABLE over REST (PUT→403, DELETE→no-op) — bake all
@@ -243,3 +249,63 @@ Beliefs earn authority; they don't get it for free. When writing an entry:
 - 2026-07-04 [global] OWNER VERDICTS on the confirmation queue (Trustworthy Memory): **Q1 DENIED** — the platform SUPPORTS parallel branches + conditional skips in workflows [tier:owner-confirmed]; addWorkflow's Sequence-only output is an ENGINE GAP. **Q2 CONFIRMED** — no conditional-mandatory primitive exists [tier:owner-confirmed]; the R14 optional+convention pattern is the correct design. **Q3 DENIED** — row-level report scoping EXISTS [tier:owner-confirmed]; "report View = all items" was an engine/knowledge gap, and SEC-R2-style "scope is convention" waivers must be revisited once the engine learns the scoping shape. Discovery work queued for the branch and report-scope metadata shapes (golden exports / platform source / UI-built samples).
 - 2026-07-04 [global] Q4 CONFIRMED by platform owner [tier:owner-confirmed]: integrations have NO field-change trigger — item-level events (created/submitted/completed/advances) are the full trigger vocabulary. Pull surfaces (scoped ledger views) remain the correct pattern for field-edit signals; do not design speculative edit-stitches.
 - 2026-07-04 [global] Q6 CONFIRMED by platform owner [tier:owner-confirmed]: published apps cannot be archived/deleted via the public API — throwaway/benchmark apps on shared accounts are permanent; create them rarely and name them unmistakably.
+- 2026-07-10 [global] Step conditions are FORMULAS: Activity::Expression → Expression/Node AST (field-formula shape re-scoped Field→Activity), equality `=` not `==`; Criteria/Condition is ONLY for reference/query filters + integration IfActions [tier:owner-confirmed]. → LESSONS §11
+- 2026-07-10 [global] Parallel branches = `Parallel` NodeType activity, Activity::ProcessDef:[…] forks into nested branch ProcessDefs, auto-join (no join activity) [tier:golden-verified vs Vashi_Setup_Operations]. → LESSONS §12
+- 2026-07-10 [global] addWorkflow is LINEAR-ONLY — hand-authored conditions/parallel DROP on rebuild; keep ONE authoritative master-process script and strip non-linear IR steps before the engine base build. → LESSONS §13
+- 2026-07-10 [global] Native Decision Tables are plan-gated (403 YourPlanNotSupport) → model as dataform "Approval Matrix" + lookup + branch step-conditions. → LESSONS §14
+- 2026-07-10 [global] Lists are created EMPTY and the list-data API is closed (403 read+write; backed Selects render blank) — use Text/Number for values you must seed or condition on. → LESSONS §15
+- 2026-07-10 [global] Edit apps IN PLACE — never a new app per change (dup published apps un-deletable): per-flow getDraft→graft→putDraft→publish + applyIR reuse for pages/perms/nav [tier:owner-confirmed]. → LESSONS §16
+- 2026-07-10 [global] 423 grant-lock: member/report grants intermittently 423 during publish, re-issue after a moment → 200 — ALWAYS finish an apply with a re-grant pass. → LESSONS §16
+- 2026-07-10 [global] CANONICAL onboarding flow [tier:owner-confirmed]: `/author-setup` (no args) runs
+  `connect.mjs --auto` — an OAuth-style DEVICE FLOW with the appbuilder control plane as provider:
+  park request (/device/start) → browser to appbuilder /connect/<code> (Google SSO → pick/create
+  project → inline dev-env form if unset → approve) → loopback redirect/poll → .kf-env. /bootstrap +
+  /device/poll return dev Kissflow creds AND the user identity (KF_USER_ID/KF_USER_EMAIL, for
+  version+memory attribution). Codes are single-use, ~15 min TTL, loopback-only redirects. A
+  pre-minted connect URL (`…/c/<token>`) also works: `/author-setup <url>`. Manual env-var creds are
+  the FALLBACK for local-only authoring.
+- 2026-07-13 [global] BOARD CONNECTOR ids (live-verified hire-onboarding AR-8, 2026-07-05; catalog gap
+  closed 2026-07-13): board source created→ItemSubmitted (no draft stage), status move→StatusUpdated,
+  completed→ItemCompleted; create INTO a board = CreateItem (NOT CreateAndSubmitItem). EVENT_TO_TRIGGER
+  now maps rejected→ItemRejected (was silently falling back to created). Other board ids UNVERIFIED —
+  enrich via fetchConnectorMeta, don't guess. (integrations.mjs CONNECTOR_CATALOG)
+- 2026-07-13 [global] APPBUILDER dev environments are REUSABLE, first-class objects (set up ONCE):
+  dev_envs table + /dev-envs routes; projects link one via dev_env_id (picked at create, on the project
+  page, or one-click on the connect approve page); creds resolve dev_env_id → dev_envs.secret_ref with
+  legacy per-project dev_env_ref fallback. Raw-creds saves now CREATE a reusable env, not a per-project
+  secret.
+- 2026-07-10 [global] Don't infer "impossible" from absence in a sample — step-conditions & parallel were mis-called impossible from apps that didn't use them; find a flow that USES the feature or read the golden export before authoring/ruling out. → LESSONS §17
+- 2026-07-10 [agent:kf-seed] Dataform runtime seeding recipe (verified My_Garage_A00): POST /form/2/{acct}/{flowId} creates a PER-USER SINGLETON draft (`draft_<userId>` — creates must be sequential per form), POST …/{draftId}/submit returns the real _id; update = POST …/{flowId}/{itemId}; Reference value = {_id}; Currency = plain number (pinned to field's CurrencyTypes, echoes "N USD"); list read nests reference lookups under the ref field (e.Car.Registration_Number), create echo flattens them. [tier:reproduced]
+- 2026-07-10 [agent:kf-seed] Invalid Select values are SILENTLY DROPPED at create (200, field absent from echo) and only surface at submit as 400 'Value is required' — a REQUIRED list-backed Select with an empty list blocks ALL submits; since list data/import APIs 403 (reaffirmed 2026-07-10), the working fix is in-place graft Select→Text (same field id, drop ReferredList) → publish, which the runtime + UI accept. [tier:reproduced] → LESSONS §15/§16
+- 2026-07-10 [agent:kf-seed] PROCESS item seeding recipe (verified Payment_A07, RE_Funds_Dept_v7): create POST /process/2/{acct}/{pid}?_application_id= → 200 returns ONLY {_id, ModelId, _activity_instance_id} (sparse); submit = POST …/{pid}/{itemId}/{activityInstanceId}/submit (WITHOUT the activity id the router eats "submit" as an instance → 404 DocumentNotFound); item GET + /list are closed to a dev key, so process idempotency needs a local ledger keyed by a natural field. Submit 200 proves required fields (incl. References {_id}) validated. [tier:reproduced]
+- 2026-07-10 [agent:kf-seed] Record system `Name` is API-immutable on form items (update POST 200 but Name silently unchanged, stays "<Flow> from <User>") — reference displays use Name, but list-read nests the target's real fields under the ref (e.g. Fund.Fund_name), so custom UIs are unaffected; don't burn time setting Name. [tier:reproduced]
+- 2026-07-10 [app:RE_Funds_Dept_v7_A00] Seeded 2026-07-10: 8 funds/10 vendors/42 sub-flow rows/6 title deeds/5 payments; grafted Select→Text on Fund_A06.{Fund_firm,Status,Property_Type} + Vendor_A33.Class_ID (empty backing lists; pre-graft drafts in runs/re-funds-seed/backup-draft-*.json); re-run load via runs/re-funds-seed/load.mjs (idempotent).
+- 2026-07-13 [global] Field type "TextArea" (capital A) was NOT in TYPE_ALIAS → passed raw into the
+  blob → process publish 500 opaque MetadataError (Employee Onboarding Hub, live-diagnosed by field
+  inspection; forms draft accepted it, PUBLISH rejected). Kissflow's real type is "Textarea". Fixed:
+  TYPE_ALIAS now maps TextArea+Multiline→Textarea. Surgical recovery recipe worked as designed:
+  getDraft→walk fields→fix Type→putDraft→publish (no rebuild). Also reaffirmed: 423 grant-lock on
+  member access during publish → re-grant pass → 200 (LESSONS §16).
+- 2026-07-13 [global] HIVE WIRING GAP [tier:reproduced]: kf_memory (pgvector, Cloud SQL) has 0 rows —
+  connected sessions get KF_MEM_STORE=pgvector + KF_MEM_ORG from bootstrap but NO PG_URL/DATABASE_URL,
+  and vector-store's pgvector backend needs one → every remote write/recall silently falls back to the
+  MEMORY.md file. Sessions must never hold DB creds, so the fix is a control-plane memory PROXY
+  (broker endpoints authenticated by the project token) or MEM0_BASE_URL. Until then the hive stays
+  empty by construction — don't diagnose "agents aren't learning" from an empty kf_memory table.
+- 2026-07-13 [global] HIVE WIRING GAP CLOSED (supersedes the same-day gap entry): the control plane
+  now IS the memory proxy — /memory/write /memory/recall /memory/sync, authenticated by the session's
+  project token (admin token may write org "global"). Server embeds (same 256-dim hashing vectorizer,
+  KEEP control-plane/src/memory.mjs in sync with engine/embed.mjs). connect.mjs syncs the newest
+  global+project pool to MEMORY-REMOTE.md on EVERY session start; engine memory.mjs recall() is
+  proxy-first and `remember "<lesson>"` writes app-scoped rows to the hive (dedup by content hash).
+  Canon publishing = `node engine/seed-global-memory.mjs` (admin, idempotent); sessions cannot
+  escalate to global (org-partitioned).
+- 2026-07-13 [global] SUSPICION CHECK enforced in the memory PROXY (was engine-only prose/gate):
+  /memory/write runs curateWrite (mirror of curation-gate.mjs, KEEP IN SYNC) — impossibility claims
+  (flag or regex) below owner-confirmed are stored QUARANTINED: excluded from recall, listed under
+  "PENDING CONFIRMATION" in MEMORY-REMOTE.md sync; only the admin token asserting owner-confirmed
+  circulates one. Sessions cannot self-promote canon or impossibilities.
+- 2026-07-14 [global] GOLDEN EXPORTS moved to `golden-references/` at the kf-framework repo root
+  (ITAM, KFSustainabilityApp, ProfServAppMetadata, dashboard.json) — older MEMORY/LESSONS entries
+  cite them at the repo root; engine golden tests resolve golden-references/ first with a root
+  fallback. When a lesson says "read the golden export", look in golden-references/.
