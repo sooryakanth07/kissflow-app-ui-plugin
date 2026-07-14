@@ -16,8 +16,16 @@ It merges two pipelines:
 /build-app "<BRD or idea>" [--ui native|custom]
 ```
 Authors the app → generates it in your dev account → asks **native pages or custom React UI** →
-builds + deploys that UI. Pre-req: run `/author-setup` once (stages the engine + reference and
-checks your Kissflow admin access keys: `KISSFLOW_SUBDOMAIN/ACCOUNT_ID/API_KEY/API_SECRET`).
+builds + deploys that UI. Pre-req: run `/author-setup` once — it stages the engine + reference and
+**connects you to your appbuilder project** via a browser sign-in (scopes creds + shared memory to
+the project and writes `.kf-env`). Local admin access keys
+(`KISSFLOW_SUBDOMAIN/ACCOUNT_ID/API_KEY/API_SECRET`) remain a fallback for offline authoring.
+
+## Connect & track builds
+`/author-setup` links the session to a project on Kissflow's hosted **appbuilder**
+(`appbuilder.zingworks.com`) through an OAuth-style device flow — the plugin is a *client*, it
+hosts nothing. Every `/author-generate` (or `/build-app`) then registers the build as a **version**
+in the app's Versions list via `engine/publish.mjs` (a no-op when authoring purely locally).
 
 ## How the two UI modes work
 After the app + data models exist:
