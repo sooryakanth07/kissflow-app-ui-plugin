@@ -2,7 +2,7 @@
   "name": "kissflow-app-agents",
   "displayName": "Kissflow App Agents",
   "description": "Author a whole Kissflow app (data models, roles, workflows) from a BRD and build its UI — native Kissflow pages or a custom shadcn React UI. Merges the kf-app-author engine with the @abdul-kissflow/app-ui custom-UI pipeline, plus hosted appbuilder connect & build/version tracking.",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "author": {
     "name": "sooryakanth"
   },
