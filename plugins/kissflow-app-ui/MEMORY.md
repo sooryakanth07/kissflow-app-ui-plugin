@@ -309,3 +309,13 @@ Beliefs earn authority; they don't get it for free. When writing an entry:
   (ITAM, KFSustainabilityApp, ProfServAppMetadata, dashboard.json) — older MEMORY/LESSONS entries
   cite them at the repo root; engine golden tests resolve golden-references/ first with a root
   fallback. When a lesson says "read the golden export", look in golden-references/.
+- 2026-07-14 [global] §15 IMPOSSIBILITY DISPROVEN [tier:reproduced] (soorya, Inventory build; SELF-
+  SUSPICION rule vindicated): list items ARE API-writable — POST /flow/2/{acct}/list/{id}/items
+  {"ListItems":[…strings]} (object wrapper; replaces full set). Prior 403/400/404s were WRONG SHAPES
+  (top-level array 403, {Name}/{Value} 400, metadata draft path 404, PUT 404). applyIR PASS 1b now
+  auto-publishes ListItems; List-backed Selects are viable again — retire "use Text instead of
+  Select" as a blanket rule. LESSONS §15 rewritten.
+- 2026-07-14 [global] Engine env unification (Inventory build A1–A4): clientFromEnv accepts KF_*
+  aliases (KF_ACCOUNT_ID/KF_ACCESS_KEY_ID/KF_ACCESS_KEY_SECRET) AND a full-host override
+  KISSFLOW_DOMAIN/KF_DOMAIN (protocol stripped) for non-*.kissflow.com hosts; cli.mjs auto-loads
+  ./.env and ./.kf-env (already-set env wins); apply log prints the real host.

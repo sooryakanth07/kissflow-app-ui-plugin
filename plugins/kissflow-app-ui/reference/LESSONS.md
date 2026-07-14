@@ -128,10 +128,17 @@ Creating a native Decision Table returns `403 YourPlanNotSupport`. Model decisio
 dataform **"Approval Matrix"** + a lookup on the process form + branch step-conditions (§11) reading
 the looked-up values.
 
-## 15. Lists are created EMPTY — and the list-data API is closed
-API-created Lists have no rows: Select dropdowns backed by them render blank, and the API can
-neither read nor write list data (403). For any value you must **seed programmatically or condition
-on**, use a Text/Number field instead of a List-backed Select.
+## 15. List items ARE writable — via the runtime save-items handler (CORRECTED 2026-07-14)
+**The old claim "the list-data API is closed (403)" was FALSE** — a suspicion-check casualty caught
+live (soorya, Inventory build): the failing shapes were wrong, not the platform. The writer is
+`POST /flow/2/{acct}/list/{listId}/items` with `{"ListItems": ["Each","Box",…]}` — an OBJECT wrapping
+a string array; it REPLACES the full set. Failing shapes: top-level array → 403 `TypeMissMatchError`;
+`{Name:…}`/`{Value:…}` → 400 Unknown field; the `/metadata/…/draft` path → 404 (lists don't use
+draft/publish); `PUT …/items` → 404 (GET reads there, POST writes).
+`applyIR` PASS 1b now publishes every list artifact's `ListItems` automatically — required Selects
+are satisfiable again, and List-backed Selects are a legitimate design choice. (Two residual truths:
+a Select whose backing list is EMPTY still renders blank and silently drops non-matching values on
+create — so ensure the list is populated; and seed data must use the list's exact item strings.)
 
 ## 16. Edit apps IN PLACE — never a new app per change [tier:owner-confirmed]
 Duplicate published apps can't be REST-deleted (§ owner Q6) — every throwaway app is permanent.

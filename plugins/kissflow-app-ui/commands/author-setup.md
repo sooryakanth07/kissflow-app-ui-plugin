@@ -16,13 +16,8 @@ finishes: *"✓ Engine ready."* · *"✓ Connected to <subdomain> (dev)."* Never
 emitting that first line.
 
 ## 1. Materialize the engine + playbooks + seed memory
-`$CLAUDE_PLUGIN_ROOT` is often **empty** in the Bash tool env, so self-resolve the plugin root from
-the install cache (newest version) before copying, and fail loudly if the engine still isn't found:
 ```bash
-PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(ls -d ~/.claude/plugins/cache/kissflow/kissflow-app-ui/*/ 2>/dev/null | sort -V | tail -1)}"
-[ -d "$PLUGIN_ROOT/engine" ] || { echo "ERROR: plugin root not found (set \$CLAUDE_PLUGIN_ROOT or check ~/.claude/plugins/cache/kissflow/kissflow-app-ui/)"; exit 1; }
-cp -R "$PLUGIN_ROOT/engine" "$PLUGIN_ROOT/reference" "$PLUGIN_ROOT/MEMORY.md" .
-chmod -R u+w engine reference MEMORY.md   # the plugin cache is read-only (0500/0400); cp -R propagates that, so the engine can't write runs/ or MEMORY.md — make the copy writable (else it fails and you'd have to escape to /tmp)
+cp -R "$CLAUDE_PLUGIN_ROOT/engine" "$CLAUDE_PLUGIN_ROOT/reference" "$CLAUDE_PLUGIN_ROOT/MEMORY.md" .
 ```
 You now have `./engine` (the deterministic IR→metadata builder + validators + tests), `./reference`
 (the playbooks the agents read first), and `./MEMORY.md` (the auto-evolving agent memory — yours to
@@ -52,6 +47,12 @@ Connect also **syncs the newest memory from the server**: `MEMORY-REMOTE.md` lan
 `MEMORY.md` with the current global canon + this project's app/agent learnings (agents read all
 three: MEMORY.md, MEMORY-LOCAL.md, MEMORY-REMOTE.md). Write new lessons to the hive with
 `node engine/memory.mjs remember "<lesson>" --app <appId>`; recall is proxy-first automatically.
+
+**THE PROJECT NAME IS THE WORKING CONTEXT.** `.kf-env` carries `KF_PROJECT_NAME` (e.g. "PR App").
+From the moment you're connected: greet with it ("Connected to **PR App** — what should it do?"),
+interpret every subsequent ask in its context, default the app name to it when the user doesn't name
+one, and PREFIX your clarifying questions with it ("For **PR App** — should approval be
+single-level or two-level?"). Never ask the user what project/app this is about — you already know.
 
 Either way `.kf-env` lands with everything scoped to that project:
 - **Kissflow dev creds** (`KISSFLOW_SUBDOMAIN`/`ACCOUNT_ID`/`API_KEY`/`API_SECRET`, pinned to dev)

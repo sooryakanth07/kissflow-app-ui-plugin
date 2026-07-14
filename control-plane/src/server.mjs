@@ -88,7 +88,14 @@ export function createHandler(db) {
       if (req.method === "GET" && path === "/") {
         let u = null; try { u = sessionOf(req); } catch {}
         if (!u) return html(res, landingPage());
-        return html(res, dashboardPage(u, await db.listProjectsForUser(u.sub), await db.listDevEnvsForUser(u.sub)));
+        // env rows carry a MASKED key hint (last 4 of the key id, never the secret) so the edit
+        // modal can show that credentials exist — the blank write-only fields read as "empty" otherwise
+        const envs = await Promise.all((await db.listDevEnvsForUser(u.sub)).map(async (e) => {
+          const c = await secrets.get(e.secret_ref);
+          return { ...e, keyHint: c?.apiKey ? String(c.apiKey).slice(-4) : null,
+            credState: c?.apiKey && c?.apiSecret ? "ok" : c?.apiKey || c?.apiSecret ? "partial" : "none" };
+        }));
+        return html(res, dashboardPage(u, await db.listProjectsForUser(u.sub), envs));
       }
 
       // ── everything below needs a user session, EXCEPT /bootstrap and version-writes (which carry
@@ -157,10 +164,38 @@ export function createHandler(db) {
       if (req.method === "GET" && path === "/dev-envs")
         return send(res, 200, { devEnvs: await db.listDevEnvsForUser(me.sub) });
       if (req.method === "POST" && path === "/dev-envs") {
-        if (!b.subdomain || !b.apiKey) return send(res, 400, { error: "subdomain + apiKey required" });
+        if (!b.subdomain || !b.apiKey || !b.apiSecret) return send(res, 400, { error: "subdomain + access key id + access key secret are all required" });
         const env = await db.createDevEnv({ name: b.name, ownerSub: me.sub, subdomain: b.subdomain, accountId: b.accountId });
         await secrets.put(env.secret_ref, { subdomain: b.subdomain, accountId: b.accountId, apiKey: b.apiKey, apiSecret: b.apiSecret });
         return send(res, 200, { devEnv: { ...env, secret_ref: undefined } });
+      }
+
+      let md;
+      // owner edits an env: metadata (name/subdomain/account) and/or credential rotation. The secret
+      // payload carries subdomain+account too, so any change re-writes it as a merged new version;
+      // blank key/secret = keep the current ones.
+      if (req.method === "PUT" && (md = path.match(/^\/dev-envs\/([^/]+)$/))) {
+        const env = await db.getDevEnv(md[1]); if (!env) return send(res, 404, { error: "no such dev environment" });
+        if (env.owner_sub !== me.sub) return send(res, 403, { error: "owner only" });
+        if ((b.apiKey || b.apiSecret) && !(b.apiKey && b.apiSecret)) return send(res, 400, { error: "rotate with the FULL key pair — access key id AND secret together" });
+        const updated = await db.updateDevEnv(env.id, { name: b.name || null, subdomain: b.subdomain || null, account_id: b.accountId || null });
+        const cur = (await secrets.get(env.secret_ref)) || {};
+        await secrets.put(env.secret_ref, {
+          subdomain: b.subdomain || cur.subdomain || env.subdomain,
+          accountId: b.accountId || cur.accountId || env.account_id,
+          apiKey: b.apiKey || cur.apiKey,
+          apiSecret: b.apiSecret || cur.apiSecret,
+        });
+        return send(res, 200, { ok: true, devEnv: { ...updated, secret_ref: undefined }, rotated: !!(b.apiKey || b.apiSecret) });
+      }
+      if (req.method === "DELETE" && (md = path.match(/^\/dev-envs\/([^/]+)$/))) {
+        const env = await db.getDevEnv(md[1]); if (!env) return send(res, 404, { error: "no such dev environment" });
+        if (env.owner_sub !== me.sub) return send(res, 403, { error: "owner only" });
+        const using = await db.projectsUsingEnv(env.id);
+        if (using.length) return send(res, 409, { error: `in use by ${using.length} project(s): ${using.map((p) => p.name).join(", ")} — relink them first`, projects: using });
+        await secrets.del(env.secret_ref); // creds leave Secret Manager with the env
+        await db.deleteDevEnv(env.id);
+        return send(res, 200, { ok: true, deleted: env.id });
       }
 
       if (req.method === "POST" && path === "/projects") {
@@ -187,6 +222,16 @@ export function createHandler(db) {
       }
 
       let m;
+      // owner deletes a project: memberships + versions cascade; legacy per-project secret is
+      // best-effort removed. Reusable dev envs, GCS artifacts and hive memories survive on purpose.
+      if (req.method === "DELETE" && (m = path.match(/^\/projects\/([^/]+)$/))) {
+        const p = await db.getProject(m[1]); if (!p) return send(res, 404, { error: "no project" });
+        if ((await db.getMember(p.id, me.sub))?.role !== "owner") return send(res, 403, { error: "owner only" });
+        if (p.dev_env_ref) await secrets.del(p.dev_env_ref);
+        const n = await db.deleteProject({ id: p.id });
+        return send(res, 200, { ok: true, deleted: n });
+      }
+
       if ((m = path.match(/^\/projects\/([^/]+)\/dev-env$/)) && req.method === "POST") {
         const p = await db.getProject(m[1]); if (!p) return send(res, 404, { error: "no project" });
         if ((await db.getMember(p.id, me.sub))?.role !== "owner") return send(res, 403, { error: "owner only" });
@@ -198,6 +243,8 @@ export function createHandler(db) {
           return send(res, 200, { ok: true, devEnvId: env.id, configured: true });
         }
         // …or create a new reusable env from raw creds (Secret Manager, never Postgres) and link it
+        if ((b.subdomain || b.apiKey || b.apiSecret) && !(b.subdomain && b.apiKey && b.apiSecret))
+          return send(res, 400, { error: "subdomain + access key id + access key secret are all required" });
         if (b.subdomain || b.apiKey) {
           const env = await db.createDevEnv({ name: b.name || b.subdomain, ownerSub: me.sub, subdomain: b.subdomain, accountId: b.accountId });
           await secrets.put(env.secret_ref, { subdomain: b.subdomain, accountId: b.accountId, apiKey: b.apiKey, apiSecret: b.apiSecret });

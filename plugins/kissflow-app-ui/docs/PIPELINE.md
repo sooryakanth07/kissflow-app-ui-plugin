@@ -7,20 +7,27 @@
 
 ## Get set up (once)
 
-1. **Install** the plugin in Claude Code:
+1. **Install** the plugin in Claude Code (git-URL marketplace — works in Cowork/cloud too;
+   a local-path marketplace pins cloud sandboxes to a stale snapshot):
    ```
-   /plugin marketplace add ./kf-author-plugin      # or the shared repo/folder
+   /plugin marketplace add https://github.com/dineshvaradharajan/kf-framework.git
    /plugin install kf-app-author@kf-tools
    ```
-2. **Stage the engine** — run `/author-setup` once in the folder you'll author from. It copies
-   `engine/` + `reference/` + `MEMORY.md` into your workspace and checks Node 18+ (and, only for native
-   page rendering, python3 + `KF_METADATA_PATH`).
-3. **Get a Kissflow access key — from your DEV account.** Sign in to
-   `https://dev-<company>.kissflow.com` → **Account Administration → Integrations → Access Keys →
-   Create Access Key**. Copy the **Access Key ID** and **Access Key Secret** (the secret is shown
-   once). Read the **subdomain** off the URL (`dev-<company>`) and the **account id** from Account
-   settings → Account details.
-4. **Export the four values** in the shell you run Claude Code from (never commit them):
+   Updating later: `/plugin marketplace update kf-tools` → `/plugin update kf-app-author` → restart.
+2. **Run `/author-setup`** once in the folder you'll author from — no arguments. It stages `engine/` +
+   `reference/` + `MEMORY.md` into the workspace, then runs the **browser handshake** with the
+   appbuilder control plane (**appbuilder.zingworks.com**): sign in with Google SSO, pick or create
+   your **project**, pick its **dev environment**, approve — and you're redirected back with the
+   session fully wired. `.kf-env` lands with project-scoped dev creds, your identity (for version and
+   memory attribution), the memory org, artifact storage and the control-plane token; and
+   **`MEMORY-REMOTE.md`** syncs the newest global + project memory from the server.
+3. **Dev environments (one-time, in the appbuilder):** add your Kissflow **DEV** account once —
+   subdomain (`dev-<company>`), account id, and an access key pair from
+   **Account Administration → Integrations → Access Keys** (id AND secret; both are required). Creds
+   are stored in Secret Manager server-side and reused by every project you link; owners can rotate
+   or delete them from the dashboard. Sessions only ever receive them scoped and short-lived.
+4. **Fallback — local-only authoring without the appbuilder:** export the four values in your shell
+   (never commit them):
    ```bash
    export KISSFLOW_SUBDOMAIN=dev-acme        # the DEV/builder subdomain
    export KISSFLOW_ACCOUNT_ID=Aclo…
@@ -69,7 +76,7 @@ lists them and switches the active one.
 ## The flow after you have a BRD
 
 ```
-  /author-setup          (once per workspace — stages engine + reference + memory)
+  /author-setup          (once per workspace — stages engine + memory, connects to your appbuilder project)
         │
         ▼
   /author-brief <brd>    STAGE 1  ingest → new run, extract domain, list open questions
@@ -105,7 +112,7 @@ Utilities alongside the flow: **`/author-status`** (where this run stands + vers
 | 3 Review | `/author-review` | Renders `review.html` (every entity/field/workflow/permission/page/decision is an item you can ✓ ok / ✎ change / ? ask + comment; **Copy change-list** exports your flags) **and** a clickable per-role prototype of the intended UI. | nothing |
 | 4 Iterate | `/author-refine "…"` | Applies your change-list, re-runs the right specialist, re-verifies knock-on effects, logs the change, snapshots **vN+1**. Repeat until it's right. | plan only |
 | 5 Confidence | `/author-preview` | Validates + dry-runs the build: shows the exact manifest (flows/forms/fields/workflows/permissions/pages), flags what's immutable, surfaces unresolved questions. | nothing |
-| 6 Build | `/author-generate` | Applies the plan to **dev** — creates the real app. Writes `generated/` with real ids; runs acceptance. `--dry-run` / `--yes` supported. | **Kissflow (dev)** |
+| 6 Build | `/author-generate` | Applies the plan to **dev** — creates the real app. Writes `generated/` with real ids; runs acceptance; **registers a version on the appbuilder project page** (artifacts to GCS — review/prototype open from there). `--dry-run` / `--yes` supported. | **Kissflow (dev) + appbuilder** |
 
 ## The two things reviewers actually look at
 
@@ -169,7 +176,7 @@ saved and versioned, so you can `/author-refine` and regenerate afterwards.
 
 | Command | Role |
 |---|---|
-| `/author-setup` | Stage engine + reference + memory into the workspace (once). |
+| `/author-setup` | Stage engine + memory; browser-connect to your appbuilder project (once). |
 | `/author-brief <brd>` | Start a new run; ingest the BRD. |
 | `/author-plan` | Propose the full design (snapshot v1). |
 | `/author-review` | Interactive review page + clickable prototype. |

@@ -44,10 +44,6 @@ statuses{} } } } }, data_scope (the canonical role×flow→scope map dashboards/
 ## [HARD] rules
 - **No lockouts** — every workflow step has at least one role that can act it; no journey persona is
   denied a step it must perform; no flow is invisible to all roles that need it.
-- **Prefer STAFFED roles for approval/act steps** — a role being *assigned* to a step isn't enough; it
-  must have **≥1 assignable member** at go-live, or the first `submit` fails ("There is no assignee for
-  the next step …"). When choosing the actor role for an approval/act step, pick one that will be
-  staffed; if a role may be empty at launch, add a fallback assignee (creator/admin) and flag it.
 - **Name the INITIATOR + ACCESSORS of every flow — DATA FORMS included** — for each flow (process,
   case, and **data form**: masters, registries, parent/sub-records) record which role(s) may
   **create/initiate** it and which may **read** its data. The experience-designer gates the create

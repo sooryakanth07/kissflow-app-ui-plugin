@@ -80,12 +80,6 @@ only defined fields.
   `City`, etc.; they collide account-wide (`FlowNameAlreadyExists 04206`) and their referrers then
   dangle & fail to publish. Prefix them (`Fund Currency`, `RE Project`). The engine now auto-prefixes
   on collision as a backstop, but name them uniquely up front. (LESSONS §5)
-- **A multi-field master MUST be a Form, never a `list`/`dataset`** — lists/datasets are ONLY
-  single-column option sets (they store just `ListItems`); the engine's apply creates nothing for a
-  multi-field `dataset`-typed flow, so a master with **more than a single option-value column** is
-  **silently never applied**. If a master needs more than one column (Category + description, Supplier
-  + contact/terms), type it **Form** (with a Reference from the referrer), not `list`/`dataset`.
-  Reserve `list`/`dataset` for pure single-value option sets. When unsure, use a Form.
 - **Formulas are strings — full Kissflow grammar** — write `computed`/`formula` with infix `+ - * /`,
   comparison `= < > >= <= !=`, parentheses/precedence, `"string literals"`, and **named functions**
   (`IF(cond, a, b)`, `CONCATENATE(…)`, `ROUND(x, n)`, `DATEDIFF(d1, d2, "Month")`, `SUM`, `ISBLANK`, …).

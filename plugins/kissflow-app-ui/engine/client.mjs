@@ -14,7 +14,6 @@ import { slug, eid } from "./util.mjs";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { readFileSync, writeFileSync, existsSync, renameSync } from "node:fs";
 
 const ENGINE_DIR = dirname(fileURLToPath(import.meta.url));
 
@@ -57,18 +56,21 @@ export function flowGrant(flowType, { editable = true, admin = false } = {}) {
 }
 
 export function clientFromEnv() {
-  // Accept both the engine's KISSFLOW_* names and the UI-tooling KF_* names (scaffold + .env).
+  // Accept both the engine's KISSFLOW_* names and the UI-tooling KF_* names (scaffold + .env use
+  // KF_DOMAIN/KF_ACCOUNT_ID/KF_ACCESS_KEY_ID/KF_ACCESS_KEY_SECRET) — the naming split was the root
+  // cause of "must be set in env" with a populated .env (soorya, Inventory build 2026-07-03).
   const env = process.env;
   const acc = env.KISSFLOW_ACCOUNT_ID || env.KF_ACCOUNT_ID;
   const key = env.KISSFLOW_API_KEY || env.KF_ACCESS_KEY_ID;
   const secret = env.KISSFLOW_API_SECRET || env.KF_ACCESS_KEY_SECRET;
-  // Host: a full-domain override (KISSFLOW_DOMAIN/KF_DOMAIN) wins — needed for non-*.kissflow.com
-  // hosts (QA/self-hosted). Otherwise fall back to <subdomain>.kissflow.com.
+  // Host resolution: a full-domain override (KISSFLOW_DOMAIN/KF_DOMAIN) wins — required for
+  // non-*.kissflow.com hosts (QA/self-hosted). A DOTTED subdomain is also treated as a full host.
   const domain = env.KISSFLOW_DOMAIN || env.KF_DOMAIN;
   const sub = env.KISSFLOW_SUBDOMAIN || env.KF_SUBDOMAIN;
   if (!acc || !key || !secret || (!domain && !sub))
     throw new Error("Set KISSFLOW_ACCOUNT_ID/API_KEY/API_SECRET (or KF_ACCOUNT_ID/KF_ACCESS_KEY_ID/KF_ACCESS_KEY_SECRET) and KISSFLOW_DOMAIN/KF_DOMAIN (or KISSFLOW_SUBDOMAIN) in env");
-  const host = domain ? domain.replace(/^https?:\/\//, "").replace(/\/+$/, "") : `${sub}.kissflow.com`;
+  const host = domain ? domain.replace(/^https?:\/\//, "").replace(/\/+$/, "")
+    : sub.includes(".") ? sub.replace(/^https?:\/\//, "") : `${sub}.kissflow.com`;
   const base = `https://${host}`;
   const headers = { "X-Access-Key-Id": key, "X-Access-Key-Secret": secret, "Content-Type": "application/json" };
   // RESILIENT call: retry transient network failures + 5xx/429 with backoff, and NEVER throw —
@@ -102,7 +104,8 @@ export function clientFromEnv() {
     publish: (type, id) => call("POST", `/metadata/2/${acc}/${type}/${id}/publish`, {}),
     // Lists don't use the metadata draft/publish path — their option values are saved via the
     // runtime save-items handler: POST /flow/2/{acc}/list/{id}/items {ListItems:[...]} (verified
-    // live 2026-07-03; wrong shapes 400 "Unknown field", top-level array 403, metadata path 404).
+    // live 2026-07-03, Inventory build; wrong shapes: top-level array → 403 TypeMissMatchError,
+    // {Name}/{Value} objects → 400 Unknown field, metadata draft path → 404).
     putListItems: (id, items) => call("POST", `/flow/2/${acc}/list/${id}/items`, { ListItems: items }),
     // roles associate via BODY _application_id (NOT the query param flows use); list: /app_role/2/{acc}/list?_application_id=
     createRole: (Name, appId) => call("POST", `/app_role/2/${acc}/`, { Name, _application_id: appId }),
@@ -148,25 +151,12 @@ export async function applyIR(ir, opts = {}) {
   const { artifacts } = buildApp(ir);
   const report = { app: null, created: [], published: [], roles: [], errors: [], verified: {} };
 
-  // RESUME CHECKPOINT — a re-invoked apply (e.g. after a bash-timeout kill in Cowork) loads this and
-  // SKIPS work already done instead of re-publishing. Written incrementally via persist() below.
-  // opts.stateFile is set by the CLI to runs/<>/apply-state.json (dir of the IR).
-  const stateFile = opts.stateFile;
-  const ckpt =
-    stateFile && existsSync(stateFile)
-      ? (() => { try { return JSON.parse(readFileSync(stateFile, "utf8")); } catch { return {}; } })()
-      : {};
-  const published = new Set(ckpt.published || []);
-  const listItemsDone = new Set(ckpt.listItemsDone || []);
-  const caseflowDone = new Set(ckpt.caseflowDone || []);
-  const membersDone = new Set(ckpt.membersDone || []);
-
   // app — create new, OR reuse an existing app for an INCREMENTAL apply (add pages/permissions/nav
   // onto an already-built app). Reuse mode takes a caller-supplied genToServer so it never depends on
   // the ambiguous account-wide explore (which can't tell two same-named flows from different apps apart).
   const appName = ir.app?.name || "Untitled App";
   let appId;
-  if (opts.reuse?.appId || ckpt.appId) { appId = opts.reuse?.appId || ckpt.appId; report.app = appId; report.reused = true; log(`reuse app ${appId}${ckpt.appId && !opts.reuse?.appId ? " (checkpoint)" : ""}`); }
+  if (opts.reuse?.appId) { appId = opts.reuse.appId; report.app = appId; report.reused = true; log(`reuse app ${appId}`); }
   else {
     const ra = await c.createApp(appName, ir.app?.description || "");
     if (ra.status >= 300 || !ra.body?._id) { report.errors.push(`app create failed: ${ra.status}`); return report; }
@@ -197,19 +187,6 @@ export async function applyIR(ir, opts = {}) {
     const serverRoleByName = {}; for (const r of report.roles) if (r.id) serverRoleByName[r.name] = r.id;
     for (const r of ir.roles || []) if (r.id && serverRoleByName[r.name] && r.id !== serverRoleByName[r.name]) genToServer[r.id] = serverRoleByName[r.name];
   }
-  // RESUME: seed created-flow ids from the checkpoint so PASS 1 skips re-creating them (and the body
-  // pass skips ones already in `published`). pageServerByName is declared here (used by both the page
-  // pass and persist()). persist() atomically snapshots progress (temp+rename → safe under pMap).
-  Object.assign(genToServer, ckpt.genToServer || {});
-  for (const v of Object.values(ckpt.genToServer || {})) liveIds.add(v);
-  const pageServerByName = { ...(ckpt.pageServerByName || {}), ...(opts.reuse?.pageServerByName || {}) };
-  const persist = () => {
-    if (!stateFile) return;
-    try {
-      writeFileSync(stateFile + ".tmp", JSON.stringify({ appId, genToServer, pageServerByName, published: [...published], listItemsDone: [...listItemsDone], caseflowDone: [...caseflowDone], membersDone: [...membersDone], appPublished: report.appPublished || false }));
-      renameSync(stateFile + ".tmp", stateFile);
-    } catch { /* checkpoint is best-effort — never break apply */ }
-  };
   if (opts.reuse?.genToServer) {
     // INCREMENTAL: flows already exist — use the supplied gen→server map (never the ambiguous explore).
     Object.assign(genToServer, opts.reuse.genToServer);
@@ -228,12 +205,6 @@ export async function applyIR(ir, opts = {}) {
   const accept = (a, serverId, note) => { genToServer[a.id] = serverId; liveIds.add(serverId); report.created.push({ type: a.type, gen: a.id, server: serverId, ...(note || {}) }); if (a.blob) flowMeta.push({ type: a.type, gen: a.id, server: serverId }); };
   await pMap(artifacts.filter((x) => ["list", "form", "process", "case"].includes(x.type)), 5, async (a) => {
     const name = a.shell?.Name || a.doc?.Name || a.id;
-    if (genToServer[a.id]) { // created in a prior run (checkpoint) — skip the API call, still register
-      liveIds.add(genToServer[a.id]);
-      if (a.blob) flowMeta.push({ type: a.type, gen: a.id, server: genToServer[a.id] });
-      log(`shell ${a.type} ${a.id} → ${genToServer[a.id]} (checkpoint, skip create)`);
-      return;
-    }
     const cr = await c.createFlow(a.type, name, appId, a.shell?.Description || "");
     let serverId = cr.body?._id;
     if (cr.status >= 300 || !serverId) {
@@ -259,28 +230,25 @@ export async function applyIR(ir, opts = {}) {
     accept(a, serverId);
     log(`shell ${a.type} ${a.id} → ${serverId}`);
   });
-  persist(); // checkpoint: shells created
 
   // PASS 1b — list items: lists are created as shells in PASS 1 but carry no blob (skipped by the
   // body pass). Their option values live in the artifact `.doc.ListItems` and must be saved via the
-  // runtime save-items handler, or every Select backed by the list is empty (required Selects then
-  // become unsatisfiable — no record can be created, even by a real user in the Kissflow UI).
-  for (const a of artifacts.filter((x) => x.type === "list")) {
+  // runtime save-items handler — or every Select backed by the list is EMPTY and required Selects
+  // become unsatisfiable (no record creatable, even in the Kissflow UI). Live-verified fix
+  // (soorya, Inventory build 2026-07-03) — supersedes the "list data API is closed" lesson.
+  await pMap(artifacts.filter((x) => x.type === "list"), 4, async (a) => {
     const server = genToServer[a.id];
     const items = a.doc?.ListItems || a.shell?.ListItems;
-    if (!server || !Array.isArray(items) || !items.length) continue;
-    if (listItemsDone.has(server)) continue; // checkpoint: already saved
+    if (!server || !Array.isArray(items) || !items.length) return;
     const li = await c.putListItems(server, items);
-    if (li.status < 300) { report.listItems = report.listItems || []; report.listItems.push({ id: server, count: items.length }); listItemsDone.add(server); }
+    if (li.status < 300) (report.listItems = report.listItems || []).push({ id: server, count: items.length });
     else report.errors.push(`list items ${server}: ${li.status} ${JSON.stringify(li.body).slice(0, 120)}`);
     log(`list-items ${server} → ${li.status} (${items.length})`);
-  }
-  persist(); // checkpoint: list items saved
+  });
 
   // PASS 2 — bodies: graft remapped blob onto the server starter draft, then publish.
   // Parallel (4-wide): flows are independent; genToServer/liveIds are complete after the PASS-1 barrier.
   await pMap(flowMeta, 4, async (fm) => {
-    if (published.has(fm.server)) { log(`body ${fm.server} → skip (published, checkpoint)`); return; }
     const my = artifacts.find((x) => x.id === fm.gen);
     const starter = await c.getDraft(fm.type, fm.server);
     if (starter.status >= 300) { report.errors.push(`getDraft ${fm.server} → ${starter.status}`); return; }
@@ -301,11 +269,10 @@ export async function applyIR(ir, opts = {}) {
     }
     const pd = await c.putDraft(fm.type, fm.server, merged);
     const pub = pd.status < 300 ? await c.publish(fm.type, fm.server) : { status: -1 };
-    if (pub.status < 300) { report.published.push(fm.server); published.add(fm.server); persist(); }
+    if (pub.status < 300) report.published.push(fm.server);
     else report.errors.push(`${fm.type} ${fm.server}: draft=${pd.status} publish=${pub.status} ${JSON.stringify(pd.status >= 300 ? pd.body : pub.body).slice(0, 300)}`);
     log(`body ${fm.server} → draft ${pd.status}, publish ${pub.status}`);
   });
-  persist(); // checkpoint: bodies published
 
   // PASS 2.5 — CASEFLOW STATUSES for board flows. buildBoard emits a separate `caseflow` artifact
   // (the designed lifecycle statuses); the case's model publish above does NOT carry them, so without
@@ -315,7 +282,6 @@ export async function applyIR(ir, opts = {}) {
   for (const cf of artifacts.filter((a) => a.type === "caseflow")) {
     const caseServer = genToServer[cf.parentModel];
     if (!caseServer) { report.errors.push(`caseflow ${cf.id}: parent case ${cf.parentModel} not created`); continue; }
-    if (caseflowDone.has(caseServer)) continue; // checkpoint: statuses already published
     const meta = await c.call("GET", `/flow/2/${acc}/case/${caseServer}?_application_id=${appId}`);
     const cfId = meta.body?._default_workflow_id;
     if (!cfId) { report.errors.push(`caseflow ${cf.id}: no _default_workflow_id on ${caseServer}`); continue; }
@@ -330,15 +296,13 @@ export async function applyIR(ir, opts = {}) {
     const pub = pd.status < 300 ? await c.call("POST", `/metadata/2/${acc}/case/${caseServer}/caseflow/${cfId}/publish`, {}) : { status: -1 };
     log(`caseflow ${caseServer} → statuses ${(mye["CaseFlow::Status"] || []).length}, draft ${pd.status}, publish ${pub.status}`);
     if (pub.status >= 300) report.errors.push(`caseflow ${caseServer}: draft=${pd.status} publish=${pub.status}`);
-    else caseflowDone.add(caseServer);
   }
-  persist(); // checkpoint: caseflow statuses
   } // end flow create/push (skipped in reuse mode)
 
   // PAGES + app finalize: create a page per IR page, set DefaultPage, publish the app so it's
   // end-user-runnable. (Page-graph content is a follow-up; shells make the app valid + visible.)
   let firstPage = null;
-  // pageServerByName is declared earlier (seeded from checkpoint + reuse mode)
+  const pageServerByName = { ...(opts.reuse?.pageServerByName || {}) }; // seed already-built pages in reuse mode
   for (const p of artifacts.filter((a) => a.type === "page")) {
     const pname = p.shell?.Name || p.id;
     let sid = pageServerByName[pname];
@@ -362,8 +326,7 @@ export async function applyIR(ir, opts = {}) {
       log(`page ${p.id} → ${sid}, content draft ${pd.status}, publish ${pub.status}`);
     }
   }
-  persist(); // checkpoint: pages created
-  if (firstPage && !opts.reuse && !ckpt.appPublished) {
+  if (firstPage && !opts.reuse) {
     const am = await c.call("GET", `/metadata/2/${acc}/application/${appId}/draft`);
     if (am.status < 300 && am.body?.Root) {
       am.body[am.body.Root].DefaultPage = firstPage;
@@ -371,9 +334,8 @@ export async function applyIR(ir, opts = {}) {
       const ap = await c.call("POST", `/metadata/2/${acc}/application/${appId}/publish`, {});
       report.appPublished = ap.status < 300;
       log(`app finalize: DefaultPage=${firstPage}, publish ${ap.status}`);
-      persist();
     }
-  } else if (ckpt.appPublished) { report.appPublished = true; }
+  }
   // ROLE MAPPING — grant each role member access to its mapped flows (the flow's `member` list).
   // member = {_id, Name, Kind:"AppRole", Role:"Member", Permission}. Process flows get
   // InitiateItems+Delete (can raise + manage requests); forms get Delete (full access).
@@ -394,8 +356,6 @@ export async function applyIR(ir, opts = {}) {
     return reportListCache.get(serverFlow);
   };
   await pMap(ir.permissions || [], 5, async (perm) => {
-    const permKey = `${perm.role}|${perm.model}`;
-    if (membersDone.has(permKey)) return; // checkpoint: already granted
     const roleId = roleIdByName[perm.role];
     const fSpec = (ir.forms || []).find((f) => (f.id || f.name) === perm.model);
     const serverFlow = fSpec && genToServer[fSpec.id || `${slug(fSpec.name)}_A00`];
@@ -421,9 +381,7 @@ export async function applyIR(ir, opts = {}) {
         [{ _id: roleId, Name: perm.role, _application_id: appId, Role: "Member", Permission: ["View"], Kind: "AppRole" }]);
       if (rm.status < 300) log(`  report ${rep.Name} → ${perm.role} View report`);
     }
-    membersDone.add(permKey); persist();
   });
-  persist(); // checkpoint: permissions granted
 
   // NAV + ROLE PREFERENCE — the trifecta that makes a role actually see its app. Without the
   // role's Preference{DefaultPage,DefaultNavigation} the role renders BLANK regardless of access.
