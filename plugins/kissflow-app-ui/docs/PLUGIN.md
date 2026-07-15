@@ -19,8 +19,8 @@ It merges two pipelines:
   team of specialist agents that compile an App‑Spec IR into real Kissflow metadata
   (apps, forms/processes/cases/datasets, fields, formulas, references, roles, permissions,
   workflows, pages) over the access‑key REST API via `create-shell → PUT draft → publish`.
-- **Custom UI** (ours): a **shadcn/Tailwind‑v4 React app** (`@abdul-kissflow/app-ui` +
-  `@abdul-kissflow/create-kf-app`) generated from the app's real schema and deployed as the app's
+- **Custom UI** (ours): a **shadcn/Tailwind‑v4 React app** (`@kissflow/app-core` +
+  `@kissflow/create-kf-app`) generated from the app's real schema and deployed as the app's
   `Category:"Application"` custom component (rendered in‑Kissflow via `_is_custom_ui_enabled`).
 
 **Everything targets your dev account, human‑gated — nothing auto‑publishes to prod.**

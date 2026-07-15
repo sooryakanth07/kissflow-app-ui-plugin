@@ -26,10 +26,10 @@ user's target folder:
 
 ```bash
 cd "<target-folder>"     # the user's selected/given folder — not a temp dir
-npx -y @abdul-kissflow/create-kf-app --target app --name <project-name> --yes
+npx -y @kissflow/create-kf-app --target app --name <project-name> --yes
 ```
 
-This creates `./<project-name>/` — a Vite + React app on `@abdul-kissflow/app-ui` with
+This creates `./<project-name>/` — a Vite + React app on `@kissflow/app-core` with
 folder-based routing, a layout, the SDK wired up, and the agent docs — **in the user's folder**.
 
 ## 3. Install + onboard yourself

@@ -7,8 +7,8 @@ It merges two pipelines:
 - **Authoring** (from `kf-app-author`): a deterministic engine + agent team that turns a BRD
   into real Kissflow metadata (apps, forms/processes/cases/datasets, fields, formulas,
   references, roles, permissions, workflows) via `create-shell → draft → publish`.
-- **Custom UI** (ours): a shadcn/Tailwind-v4 React app (`@abdul-kissflow/app-ui` +
-  `@abdul-kissflow/create-kf-app`) generated from the app's schema and deployed as the app's
+- **Custom UI** (ours): a shadcn/Tailwind-v4 React app (`@kissflow/app-core` +
+  `@kissflow/create-kf-app`) generated from the app's schema and deployed as the app's
   `Application` custom component (rendered in-Kissflow via `_is_custom_ui_enabled`).
 
 ## The end-to-end command

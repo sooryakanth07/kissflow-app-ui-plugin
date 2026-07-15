@@ -1,7 +1,7 @@
 # kissflow-app-ui — the custom-UI agent pipeline
 
 A team of Claude Code subagents that turn a connected Kissflow app's synced schema into
-world-class React pages on `@abdul-kissflow/app-ui`, built on **shadcn/ui + Tailwind v4**.
+world-class React pages on `@kissflow/app-core`, built on **shadcn/ui + Tailwind v4**.
 Orchestrated by the `/add-page` command.
 
 **Flow:** `architect → (per page: ui → builder, fanned out) → qa → fix loop`

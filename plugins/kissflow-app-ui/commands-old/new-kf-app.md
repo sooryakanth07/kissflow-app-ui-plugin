@@ -10,7 +10,7 @@ the request or ask. (The Kissflow App ID isn't needed to scaffold — only later
 Then run the full flow:
 
 1. **Scaffold:**
-   `npx -y @abdul-kissflow/create-kf-app --target app --name <project-name> --yes`
+   `npx -y @kissflow/create-kf-app --target app --name <project-name> --yes`
 2. **Install:** `cd <project-name> && npm install`
 3. **Onboard:** read `CLAUDE.md`, `agents/design-guidelines.md`, and `agents/kissflow-sdk.md`.
 4. **Sync data:** set up `.env` from `.env.example` (it needs the app's `KF_DOMAIN`,

@@ -11,7 +11,7 @@ It merges two pipelines behind one plugin:
   real Kissflow metadata (apps, forms/processes/cases/datasets, fields, formulas, references,
   roles, permissions, workflows, pages) via `create-shell → draft → publish`.
 - **Build the UI** — native Kissflow pages, or a **shadcn/Tailwind-v4 React app**
-  (`@abdul-kissflow/app-ui` + `@abdul-kissflow/create-kf-app`) generated from the app's schema and
+  (`@kissflow/app-core` + `@kissflow/create-kf-app`) generated from the app's schema and
   deployed as the app's `Application` custom component (rendered in-Kissflow on web + PWA).
 
 ## Install
@@ -63,8 +63,8 @@ pipeline runs brief → plan → generate → UI.
 - **Node 18+** (the engine is zero-dependency).
 - **To connect / track builds** — an appbuilder project (the browser handshake handles creds), or
   local Kissflow REST admin keys as a fallback.
-- **Custom UI mode** — `@abdul-kissflow/app-ui`, `@abdul-kissflow/create-kf-app`,
-  `@abdul-kissflow/lowcode-client-sdk`. **Native pages mode** also needs `python3`.
+- **Custom UI mode** — `@kissflow/app-core`, `@kissflow/create-kf-app`,
+  `@kissflow/lowcode-client-sdk`. **Native pages mode** also needs `python3`.
 
 ## Layout
 

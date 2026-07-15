@@ -84,7 +84,7 @@ set the app `DefaultPage`. Done — the app opens on native Kissflow pages.
    `node engine/cli.mjs resolve-experience runs/current/experience-spec.json lib/kf-schema.json --out lib/ui-spec.json`
    (drops any widget whose entity/field doesn't resolve — never fabricates; review the warnings).
 4. **Scaffold** the React project (if not already) — created **inside `$WORKDIR`** (Step 0), so it
-   lands in the user's folder: `npx -y @abdul-kissflow/create-kf-app --target app --name <app-slug>
+   lands in the user's folder: `npx -y @kissflow/create-kf-app --target app --name <app-slug>
    --yes`; set its `.env` `KF_APP_ID` to the created app id. `npm install` is large — in a
    call-capped env run it in the **background** or expect to resume; **if a later build errors with
    missing module files** (a transient partial install — e.g. lucide icons), reinstall that dep and
